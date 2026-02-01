@@ -35,14 +35,14 @@ class DAG:
     def draw(self, left_to_right=False, with_levels=False):
         """
         Visualize the DAG using Graphviz.
-        Each node is a Job; labels show job.name.
+        Each node is a Job; labels show job.name and job.state.
         """
         args = "-Grankdir=LR" if left_to_right else ""
         pos = nx.nx_agraph.graphviz_layout(self.G, prog="dot", args=args)
 
-        # Labels: Job -> "name (importance)"
+        # Labels: Job -> "name\n[state]"
         labels = {
-            job: f"{job.name}\n"
+            job: f"{job.name}\n[{job.state}]"
             for job in self.G.nodes
         }
 
@@ -69,5 +69,5 @@ class DAG:
             font_size=12,
         )
 
-        plt.title("Job DAG")
+        plt.title("Job DAG (structural view)")
         plt.show()
