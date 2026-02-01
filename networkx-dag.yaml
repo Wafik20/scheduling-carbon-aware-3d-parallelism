@@ -9,5 +9,6 @@ dependencies:
   - graphviz
   - pygraphviz
   - pip
+  - sympy
   - pip:
       - pulp
