@@ -8,3 +8,6 @@ dependencies:
   - matplotlib
   - graphviz
   - pygraphviz
+  - pip
+  - pip:
+      - pulp
