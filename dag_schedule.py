@@ -2,7 +2,6 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-
 class DAGSchedule:
     def __init__(self, dags, num_machines=1):
         """
