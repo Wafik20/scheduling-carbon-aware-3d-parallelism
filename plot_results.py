@@ -388,5 +388,53 @@ plt.savefig("graph8_3d_parallelism.png", dpi=150, bbox_inches="tight")
 plt.close()
 print("Saved: graph8_3d_parallelism.png")
 
+# ── Graph 9: 3D plot — color=carbon, size=tokens/sec ─────────────────
+fig = plt.figure(figsize=(11, 8))
+ax  = fig.add_subplot(111, projection="3d")
+
+toks_vals = [c[2]["tokens_per_sec"] for c in all_configs]
+t_min, t_max = min(toks_vals), max(toks_vals)
+
+norm2      = plt.Normalize(vmin=c_min, vmax=c_max)
+cmap2      = cm.RdYlGn_r   # red = high carbon, green = low carbon
+sizes2     = [200 + 2000 * (t - t_min) / (t_max - t_min + 1e-9) for t in toks_vals]
+
+sc2 = ax.scatter(tp_vals, pp_vals, dp_vals,
+                 c=co2_vals, cmap=cmap2,
+                 s=sizes2, alpha=0.85, edgecolors="white", linewidths=0.8,
+                 vmin=c_min, vmax=c_max)
+
+for tp, pp, dp, lbl in zip(tp_vals, pp_vals, dp_vals, lbls):
+    ax.text(tp, pp, dp + 0.15, lbl, fontsize=7.5,
+            ha="center", va="bottom", color="black")
+
+ax.set_xlabel("Tensor Parallelism (TP)", fontsize=10, labelpad=8)
+ax.set_ylabel("Pipeline Parallelism (PP)", fontsize=10, labelpad=8)
+ax.set_zlabel("Data Parallelism (DP)", fontsize=10, labelpad=8)
+ax.set_xticks([1, 2, 4])
+ax.set_yticks([1, 2, 4])
+ax.set_zticks([1, 2, 4])
+ax.set_title("3D Parallelism Space\nColor = Carbon (gCO₂/1k tokens)  |  Size = Tokens/sec",
+             fontsize=12, fontweight="bold", pad=15)
+
+cbar2 = fig.colorbar(sc2, ax=ax, pad=0.1, shrink=0.6)
+cbar2.set_label("gCO₂ per 1000 tokens", fontsize=9)
+
+# Size legend for tokens/sec
+legend_ax2 = fig.add_axes([0.01, 0.01, 0.18, 0.22])
+legend_ax2.set_xlim(0, 1)
+legend_ax2.set_ylim(0, 1)
+legend_ax2.axis("off")
+legend_ax2.set_title("Tokens/sec\nsize scale", fontsize=8, loc="left")
+for tok, y in zip([t_min, (t_min+t_max)/2, t_max], [0.15, 0.50, 0.82]):
+    sz = 200 + 2000 * (tok - t_min) / (t_max - t_min + 1e-9)
+    legend_ax2.scatter([0.25], [y], s=sz/8, c="gray", alpha=0.6)
+    legend_ax2.text(0.45, y, f"{tok:.0f}", va="center", fontsize=7.5)
+
+plt.tight_layout()
+plt.savefig("graph9_3d_carbon_tokens.png", dpi=150, bbox_inches="tight")
+plt.close()
+print("Saved: graph9_3d_carbon_tokens.png")
+
 print("\nAll 6 graphs saved!")
 print(f"\nCarbon intensity used: {CARBON_INTENSITY_G_PER_KWH} gCO₂/kWh (PJM grid, Pittsburgh PA)")
