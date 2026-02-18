@@ -1,22 +1,88 @@
-# test_monitor.py
-import torch
-import time
+"""
+train.py
+--------
+Runs a MegatronLM GPT-2 training job with power monitoring.
+Usage: python train.py --tp 1 --pp 1 --dp 4
+"""
+
+import argparse
+import subprocess
+import sys
+import os
 from compute_power import PowerMonitor
 
-monitor = PowerMonitor(interval=0.5, log_file="test_power.csv")
+# ── Argument parsing ─────────────────────────────────────────────────
+parser = argparse.ArgumentParser()
+parser.add_argument("--tp", type=int, default=1, help="Tensor parallelism degree")
+parser.add_argument("--pp", type=int, default=1, help="Pipeline parallelism degree")
+parser.add_argument("--dp", type=int, default=4, help="Data parallelism degree")
+args = parser.parse_args()
+
+TP, PP, DP = args.tp, args.pp, args.dp
+assert TP * PP * DP == 4, f"TP x PP x DP must equal 4, got {TP*PP*DP}"
+
+# ── Paths ─────────────────────────────────────────────────────────────
+BASE        = os.path.dirname(os.path.abspath(__file__))
+MEGATRON    = os.path.join(BASE, "Megatron-LM")
+DATA_PATH   = os.path.join(BASE, "gpt2_wikitext103_text_document")
+VOCAB_FILE  = os.path.join(BASE, "gpt2-vocab.json")
+MERGE_FILE  = os.path.join(BASE, "gpt2-merges.txt")
+LOG_FILE    = os.path.join(BASE, f"tp{TP}_pp{PP}_dp{DP}_power.csv")
+
+# ── Power monitor ─────────────────────────────────────────────────────
+monitor = PowerMonitor(interval=0.5, log_file=LOG_FILE)
 monitor.start()
 
-# Simple GPU stress test to generate real power draw
-print("Running GPU workload...")
-device = torch.device("cuda")
-for _ in range(100):
-    a = torch.randn(4096, 4096, device=device)
-    b = torch.randn(4096, 4096, device=device)
-    c = torch.matmul(a, b)
-    torch.cuda.synchronize()
-    time.sleep(0.1)
+# ── Launch MegatronLM training ────────────────────────────────────────
+cmd = [
+    "torchrun",
+    f"--nproc_per_node={TP * PP * DP}",
+    f"{MEGATRON}/pretrain_gpt.py",
+    # Parallelism
+    f"--tensor-model-parallel-size={TP}",
+    f"--pipeline-model-parallel-size={PP}",
+    # GPT-2 Small model
+    "--num-layers=12",
+    "--hidden-size=768",
+    "--num-attention-heads=12",
+    "--seq-length=1024",
+    "--max-position-embeddings=1024",
+    # Training
+    "--micro-batch-size=2",
+    "--global-batch-size=16",
+    "--train-iters=50",
+    "--lr=0.0001",
+    "--min-lr=0.00001",
+    "--lr-decay-style=cosine",
+    "--lr-warmup-fraction=0.01",
+    "--clip-grad=1.0",
+    "--weight-decay=0.1",
+    # Data
+    f"--data-path={DATA_PATH}",
+    f"--vocab-file={VOCAB_FILE}",
+    f"--merge-file={MERGE_FILE}",
+    "--split=949,50,1",
+    # Logging
+    "--log-interval=10",
+    "--eval-iters=5",
+    "--eval-interval=50",
+    # Precision
+    "--bf16",
+]
 
+print(f"\n{'='*50}")
+print(f"  Training: TP={TP} PP={PP} DP={DP}")
+print(f"{'='*50}\n")
+
+result = subprocess.run(cmd, cwd=MEGATRON)
+
+# ── Results ───────────────────────────────────────────────────────────
 monitor.stop()
 avg_power, readings = monitor.results()
-print(f"Samples collected : {len(readings)}")
-print(f"Avg cluster power : {avg_power:.2f} W")
+
+print(f"\n{'='*50}")
+print(f"  TP={TP} PP={PP} DP={DP}")
+print(f"  Avg cluster power : {avg_power:.2f} W")
+print(f"  Samples collected : {len(readings)}")
+print(f"  Log saved to      : {LOG_FILE}")
+print(f"{'='*50}\n")
