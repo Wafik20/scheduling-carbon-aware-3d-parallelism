@@ -9,6 +9,12 @@ import argparse
 import subprocess
 import sys
 import os
+
+# Point MegatronLM fused kernels to system nvcc
+os.environ.setdefault("CUDA_HOME", "/usr")
+os.environ["PATH"] = "/usr/bin:" + os.environ.get("PATH", "")
+# Required for Tensor Parallelism
+os.environ["CUDA_DEVICE_MAX_CONNECTIONS"] = "1"
 from compute_power import PowerMonitor
 
 # ── Argument parsing ─────────────────────────────────────────────────
@@ -38,6 +44,10 @@ cmd = [
     "torchrun",
     f"--nproc_per_node={TP * PP * DP}",
     f"{MEGATRON}/pretrain_gpt.py",
+    # Use local transformer implementation (no Transformer Engine required)
+    "--transformer-impl=local",
+    "--no-persist-layer-norm",
+    "--no-gradient-accumulation-fusion",
     # Parallelism
     f"--tensor-model-parallel-size={TP}",
     f"--pipeline-model-parallel-size={PP}",
