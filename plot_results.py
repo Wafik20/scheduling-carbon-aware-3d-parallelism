@@ -319,5 +319,74 @@ plt.savefig("graph7_carbon_vs_traintime.png", dpi=150, bbox_inches="tight")
 plt.close()
 print("Saved: graph7_carbon_vs_traintime.png")
 
+# ── Graph 8: 3D plot — TP x PP x DP, color=power, size=carbon ────────
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.cm as cm
+import matplotlib.colorbar as mcolorbar
+
+fig = plt.figure(figsize=(11, 8))
+ax  = fig.add_subplot(111, projection="3d")
+
+tp_vals    = [c[2]["tp"]           for c in all_configs]
+pp_vals    = [c[2]["pp"]           for c in all_configs]
+dp_vals    = [c[2]["dp"]           for c in all_configs]
+power_vals = [c[2]["avg_power"]    for c in all_configs]
+co2_vals   = [c[2]["co2_per_1k"]   for c in all_configs]
+lbls       = [c[0].replace("\n", " ") for c in all_configs]
+
+# Normalize power for colormap and carbon for point size
+p_min, p_max = min(power_vals), max(power_vals)
+c_min, c_max = min(co2_vals),   max(co2_vals)
+
+norm       = plt.Normalize(vmin=p_min, vmax=p_max)
+cmap       = cm.RdYlGn_r          # red = high power, green = low power
+colors_3d  = [cmap(norm(p)) for p in power_vals]
+sizes      = [200 + 2000 * (c - c_min) / (c_max - c_min + 1e-9) for c in co2_vals]
+
+sc = ax.scatter(tp_vals, pp_vals, dp_vals,
+                c=power_vals, cmap=cmap,
+                s=sizes, alpha=0.85, edgecolors="white", linewidths=0.8,
+                vmin=p_min, vmax=p_max)
+
+# Annotate each point
+for tp, pp, dp, lbl in zip(tp_vals, pp_vals, dp_vals, lbls):
+    ax.text(tp, pp, dp + 0.15, lbl, fontsize=7.5,
+            ha="center", va="bottom", color="black")
+
+# Axes
+ax.set_xlabel("Tensor Parallelism (TP)", fontsize=10, labelpad=8)
+ax.set_ylabel("Pipeline Parallelism (PP)", fontsize=10, labelpad=8)
+ax.set_zlabel("Data Parallelism (DP)", fontsize=10, labelpad=8)
+ax.set_xticks([1, 2, 4])
+ax.set_yticks([1, 2, 4])
+ax.set_zticks([1, 2, 4])
+ax.set_title("3D Parallelism Space\nColor = Power (W)  |  Size = Carbon (gCO₂/1k tokens)",
+             fontsize=12, fontweight="bold", pad=15)
+
+# Colorbar for power
+cbar = fig.colorbar(sc, ax=ax, pad=0.1, shrink=0.6)
+cbar.set_label("Avg Cluster Power (W)", fontsize=9)
+
+# Size legend for carbon — use a separate inset axes
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+legend_ax = fig.add_axes([0.01, 0.01, 0.18, 0.22])  # [left, bottom, width, height]
+legend_ax.set_xlim(0, 1)
+legend_ax.set_ylim(0, 1)
+legend_ax.axis("off")
+legend_ax.set_title("Carbon\n(gCO₂/1k)", fontsize=8, loc="left")
+
+# Show 3 representative sizes
+sample_co2 = [c_min, (c_min + c_max) / 2, c_max]
+sample_y   = [0.15, 0.50, 0.82]
+for co2, y in zip(sample_co2, sample_y):
+    sz = 200 + 2000 * (co2 - c_min) / (c_max - c_min + 1e-9)
+    legend_ax.scatter([0.25], [y], s=sz/8, c="gray", alpha=0.6)
+    legend_ax.text(0.45, y, f"{co2:.4f}", va="center", fontsize=7.5)
+
+plt.tight_layout()
+plt.savefig("graph8_3d_parallelism.png", dpi=150, bbox_inches="tight")
+plt.close()
+print("Saved: graph8_3d_parallelism.png")
+
 print("\nAll 6 graphs saved!")
 print(f"\nCarbon intensity used: {CARBON_INTENSITY_G_PER_KWH} gCO₂/kWh (PJM grid, Pittsburgh PA)")
