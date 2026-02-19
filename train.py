@@ -58,7 +58,7 @@ cmd = [
     "--seq-length=1024",
     "--max-position-embeddings=1024",
     # Training
-    "--micro-batch-size=2",
+    "--micro-batch-size=2", # Changing this will yield better efficiency
     "--global-batch-size=16",
     "--train-iters=50",
     "--lr=0.0001",
