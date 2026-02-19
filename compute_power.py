@@ -25,11 +25,12 @@ from pynvml import (
 import threading
 import time
 import csv
+import os
 from datetime import datetime
 
 
 class PowerMonitor:
-    def __init__(self, interval=1.0, log_file="power_log.csv"):
+    def __init__(self, interval=1.0, log_file="data/power_log.csv"):
         self.interval  = interval
         self.log_file  = log_file
         self._stop_evt = threading.Event()
@@ -50,6 +51,7 @@ class PowerMonitor:
         print(f"[PowerMonitor] Stopped. {len(self._readings)} samples collected.")
 
     def _monitor_loop(self):
+        os.makedirs(os.path.dirname(self.log_file) or ".", exist_ok=True)
         with open(self.log_file, "w", newline="") as f:
             writer = csv.writer(f)
             gpu_cols = [f"GPU_{i}_W" for i in range(self._n_gpus)]
@@ -80,7 +82,7 @@ class PowerMonitor:
 
 
 if __name__ == "__main__":
-    monitor = PowerMonitor(interval=1.0, log_file="power_log.csv")
+    monitor = PowerMonitor(interval=1.0, log_file="data/power_log.csv")
     monitor.start()
     print("Sampling for 10 seconds...")
     time.sleep(10)
@@ -88,4 +90,4 @@ if __name__ == "__main__":
     avg, readings = monitor.results()
     print(f"\nAverage total cluster power: {avg:.2f} W")
     print(f"Samples collected         : {len(readings)}")
-    print(f"Log saved to              : power_log.csv")
+    print(f"Log saved to              : data/power_log.csv")

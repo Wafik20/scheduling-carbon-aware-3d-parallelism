@@ -29,11 +29,14 @@ assert TP * PP * DP == 4, f"TP x PP x DP must equal 4, got {TP*PP*DP}"
 
 # ── Paths ─────────────────────────────────────────────────────────────
 BASE        = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR    = os.path.join(BASE, "data")
 MEGATRON    = os.path.join(BASE, "Megatron-LM")
 DATA_PATH   = os.path.join(BASE, "gpt2_wikitext103_text_document")
 VOCAB_FILE  = os.path.join(BASE, "gpt2-vocab.json")
 MERGE_FILE  = os.path.join(BASE, "gpt2-merges.txt")
-LOG_FILE    = os.path.join(BASE, f"tp{TP}_pp{PP}_dp{DP}_power.csv")
+LOG_FILE    = os.path.join(DATA_DIR, f"tp{TP}_pp{PP}_dp{DP}_power.csv")
+
+os.makedirs(DATA_DIR, exist_ok=True)
 
 # ── Power monitor ─────────────────────────────────────────────────────
 monitor = PowerMonitor(interval=0.5, log_file=LOG_FILE)
