@@ -212,3 +212,5 @@ __marimo__/
 *.idx
 /gpt2_wikitext103_text_document
 Megatron-LM/
+llama-3.2-1B/
+llama-3.2-3B/
