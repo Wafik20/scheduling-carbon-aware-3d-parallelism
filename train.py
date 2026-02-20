@@ -22,14 +22,15 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--tp", type=int, default=1, help="Tensor parallelism degree")
 parser.add_argument("--pp", type=int, default=1, help="Pipeline parallelism degree")
 parser.add_argument("--dp", type=int, default=4, help="Data parallelism degree")
+parser.add_argument("--model", type=str, default="gpt2", help="Model name used for organizing power logs")
 args = parser.parse_args()
 
-TP, PP, DP = args.tp, args.pp, args.dp
+TP, PP, DP, MODEL = args.tp, args.pp, args.dp, args.model
 assert TP * PP * DP == 4, f"TP x PP x DP must equal 4, got {TP*PP*DP}"
 
 # ── Paths ─────────────────────────────────────────────────────────────
 BASE        = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR    = os.path.join(BASE, "data")
+DATA_DIR    = os.path.join(BASE, "data", MODEL)
 MEGATRON    = os.path.join(BASE, "Megatron-LM")
 DATA_PATH   = os.path.join(BASE, "gpt2_wikitext103_text_document")
 VOCAB_FILE  = os.path.join(BASE, "gpt2-vocab.json")
@@ -84,7 +85,7 @@ cmd = [
 ]
 
 print(f"\n{'='*50}")
-print(f"  Training: TP={TP} PP={PP} DP={DP}")
+print(f"  Training: model={MODEL} TP={TP} PP={PP} DP={DP}")
 print(f"{'='*50}\n")
 
 result = subprocess.run(cmd, cwd=MEGATRON)
@@ -94,7 +95,7 @@ monitor.stop()
 avg_power, readings = monitor.results()
 
 print(f"\n{'='*50}")
-print(f"  TP={TP} PP={PP} DP={DP}")
+print(f"  model={MODEL} TP={TP} PP={PP} DP={DP}")
 print(f"  Avg cluster power : {avg_power:.2f} W")
 print(f"  Samples collected : {len(readings)}")
 print(f"  Log saved to      : {LOG_FILE}")
