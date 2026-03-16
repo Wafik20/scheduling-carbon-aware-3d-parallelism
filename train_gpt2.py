@@ -2,10 +2,14 @@
 train_gpt2.py
 -------------
 Runs Megatron GPT-2 training with power monitoring across
-different 3D parallelism configurations.
+different 3D parallelism configurations. Uses mock data
+and random init for power benchmarking.
 
 Usage:
-    apptainer run --nv /u/data3/wat29/nemo.sif \
+    apptainer run --nv \
+        --bind /u/data3/wat29:/u/data3/wat29 \
+        --bind /u/data3/wat29/Megatron-LM:/opt/megatron-lm \
+        /u/data3/wat29/nemo.sif \
         python train_gpt2.py --tp 1 --pp 1 --dp 4
 
 Assumes 4 GPUs total (TP × PP × DP must equal 4).
@@ -26,8 +30,7 @@ os.environ["CUDA_DEVICE_MAX_CONNECTIONS"] = "1"  # Required for TP
 # ── Constants ─────────────────────────────────────────────────────────
 NUM_GPUS = 4
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = "/u/data3/wat29/wikitext103"
-RESULTS_DIR = os.path.join(PROJECT_DIR, "power_logs", "gpt2")
+PRETRAIN_SCRIPT = "/opt/megatron-lm/pretrain_gpt.py"
 
 # ── Argument parsing ──────────────────────────────────────────────────
 parser = argparse.ArgumentParser(description="GPT-2 training with power monitoring")
@@ -45,28 +48,18 @@ assert TP * PP * DP == NUM_GPUS, (
 )
 
 # ── Paths ─────────────────────────────────────────────────────────────
-DATA_PATH = os.path.join(DATA_DIR, "gpt2_wikitext103_text_document")
-VOCAB_FILE = os.path.join(DATA_DIR, "gpt2-vocab.json")
-MERGE_FILE = os.path.join(DATA_DIR, "gpt2-merges.txt")
+RESULTS_DIR = os.path.join(PROJECT_DIR, "power_logs", "gpt2")
 LOG_FILE = os.path.join(RESULTS_DIR, f"tp{TP}_pp{PP}_dp{DP}_power.csv")
-
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-# Verify data files exist before launching
-for path, label in [(VOCAB_FILE, "vocab"), (MERGE_FILE, "merges")]:
-    if not os.path.exists(path):
-        sys.exit(f"Error: {label} file not found at {path}")
-
 # ── Build Megatron command ────────────────────────────────────────────
-PRETRAIN_SCRIPT = "/opt/megatron-lm/pretrain_gpt.py"
-
 cmd = [
     "torchrun",
     f"--nproc_per_node={NUM_GPUS}",
     PRETRAIN_SCRIPT,
     # Parallelism
-    f"--tensor-model-parallel-size={TP}",
-    f"--pipeline-model-parallel-size={PP}",
+    "--tensor-model-parallel-size", str(TP),
+    "--pipeline-model-parallel-size", str(PP),
     # GPT-2 Small (124M)
     "--num-layers", "12",
     "--hidden-size", "768",
@@ -83,13 +76,11 @@ cmd = [
     "--lr-warmup-fraction", "0.01",
     "--clip-grad", "1.0",
     "--weight-decay", "0.1",
-    # Data
-    "--data-path", DATA_PATH,
-    "--vocab-file", VOCAB_FILE,
-    "--merge-file", MERGE_FILE,
-    "--tokenizer-type", "GPT2BPETokenizer",
-    "--dataloader-type", "single",
-    "--split", "949,50,1",
+    # Mock data (no real dataset needed for power benchmarking)
+    "--mock-data",
+    "--tokenizer-type", "NullTokenizer",
+    "--vocab-size", "50257",
+    "--split", "99,1,0",
     # Logging
     "--log-interval", "10",
     "--eval-iters", "5",
@@ -102,7 +93,6 @@ cmd = [
 tag = f"gpt2 TP={TP} PP={PP} DP={DP}"
 print(f"\n{'='*50}")
 print(f"  Training: {tag}")
-print(f"  Data:     {DATA_PATH}")
 print(f"  Log:      {LOG_FILE}")
 print(f"{'='*50}\n")
 
