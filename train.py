@@ -11,9 +11,9 @@ Automatically wraps the torchrun command inside the nemo.sif
 Apptainer container, so this script is run from the **host**.
 
 Usage:
-    python train.py --model gpt2  --tp 1 --pp 1 --dp 4
-    python train.py --model 1b    --tp 2 --pp 1 --dp 2
-    python train.py --model 3b    --tp 4 --pp 2 --dp 1
+    python train.py --model gpt2      --tp 1 --pp 1 --dp 4
+    python train.py --model llama_1b  --tp 2 --pp 1 --dp 2
+    python train.py --model llama_3b  --tp 4 --pp 2 --dp 1
 """
 
 import argparse
@@ -49,7 +49,7 @@ MODEL_CONFIGS = {
         "vocab_size": 50257,
         "extra_args": [],
     },
-    "1b": {
+    "llama_1b": {
         "num_layers": 16,
         "hidden_size": 2048,
         "ffn_hidden_size": 8192,
@@ -74,7 +74,7 @@ MODEL_CONFIGS = {
             "--no-gradient-accumulation-fusion",
         ],
     },
-    "3b": {
+    "llama_3b": {
         "num_layers": 28,
         "hidden_size": 3072,
         "ffn_hidden_size": 8192,
@@ -143,7 +143,7 @@ if cfg["num_query_groups"] is not None:
     )
 
 # ── Paths ─────────────────────────────────────────────────────────────
-LOG_SUBDIRS = {"gpt2": "gpt2", "1b": "llama_1b", "3b": "llama_3b"}
+LOG_SUBDIRS = {"gpt2": "gpt2", "llama_1b": "llama_1b", "llama_3b": "llama_3b"}
 RESULTS_DIR = os.path.join(PROJECT_DIR, "power_logs", LOG_SUBDIRS[args.model])
 LOG_FILE = os.path.join(RESULTS_DIR, f"tp{TP}_pp{PP}_dp{DP}_power.csv")
 os.makedirs(RESULTS_DIR, exist_ok=True)
@@ -203,7 +203,7 @@ if cfg["num_query_groups"] is not None:
     cmd += ["--num-query-groups", str(cfg["num_query_groups"])]
 
 # LLaMA models use activation recomputation
-if args.model in ("1b", "3b"):
+if args.model in ("llama_1b", "llama_3b"):
     cmd += [
         "--recompute-granularity", "full",
         "--recompute-method", "uniform",
