@@ -7,13 +7,28 @@ Unified Megatron training script with power monitoring for:
   - LLaMA 3.2 3B
 
 Uses mock data and random init for power benchmarking.
-Automatically wraps the torchrun command inside the nemo.sif
-Apptainer container, so this script is run from the **host**.
+Automatically wraps the torchrun command inside an Apptainer
+container, so this script is run from the **host**.
+
+All cluster-specific paths can be overridden via CLI flags or
+environment variables, making it portable across setups.
 
 Usage:
+    # Local (tintin)
     python train.py --model gpt2      --tp 1 --pp 1 --dp 4
-    python train.py --model llama_1b  --tp 2 --pp 1 --dp 2
-    python train.py --model llama_3b  --tp 4 --pp 2 --dp 1
+
+    # Pitt CRC
+    python train.py --model gpt2 --tp 1 --pp 1 --dp 4 \
+        --num-gpus 4 \
+        --container-image /bgfs/stephenlee/wat29/nemo.sif \
+        --container-bind /bgfs/stephenlee/wat29/Megatron-LM:/opt/megatron-lm \
+        --container-bind /ihome/stephenlee/wat29:/ihome/stephenlee/wat29
+
+Environment variables (override defaults):
+    NUM_GPUS            Number of GPUs (default: 4)
+    CONTAINER_IMAGE     Path to .sif file
+    CONTAINER_BINDS     Comma-separated bind mounts (host:container,...)
+    MEGATRON_DIR        Megatron-LM dir inside container (default: /opt/megatron-lm)
 """
 
 import argparse
@@ -23,28 +38,25 @@ import sys
 
 from compute_power import PowerMonitor
 
-# ── Constants ─────────────────────────────────────────────────────────
-NUM_GPUS = 4
-PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
-PRETRAIN_SCRIPT = "/opt/megatron-lm/pretrain_gpt.py"
-
-# Apptainer / container
-CONTAINER_IMAGE = "/u/data3/wat29/nemo.sif"
-CONTAINER_BINDS = [
+# ── Cluster defaults (overridable via env vars or CLI) ────────────────
+DEFAULT_NUM_GPUS = 4
+DEFAULT_CONTAINER_IMAGE = "/u/data3/wat29/nemo.sif"
+DEFAULT_CONTAINER_BINDS = [
     "/u/data3/wat29:/u/data3/wat29",
     "/u/data3/wat29/Megatron-LM:/opt/megatron-lm",
 ]
+DEFAULT_MEGATRON_DIR = "/opt/megatron-lm"
+
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ── Model configs ─────────────────────────────────────────────────────
-# Each entry contains architecture params + any model-specific Megatron flags.
-# "extra_args" are appended verbatim to the command.
 MODEL_CONFIGS = {
     "gpt2": {
         "num_layers": 12,
         "hidden_size": 768,
-        "ffn_hidden_size": None,          # default (4×hidden) for GPT-2
+        "ffn_hidden_size": None,
         "num_attention_heads": 12,
-        "num_query_groups": None,         # standard MHA
+        "num_query_groups": None,
         "seq_length": 1024,
         "vocab_size": 50257,
         "extra_args": [],
@@ -102,13 +114,21 @@ MODEL_CONFIGS = {
 }
 
 # ── Argument parsing ──────────────────────────────────────────────────
-parser = argparse.ArgumentParser(description="Unified Megatron training with power monitoring")
+parser = argparse.ArgumentParser(
+    description="Unified Megatron training with power monitoring",
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+)
+
+# Model & parallelism
 parser.add_argument("--model", type=str, required=True,
                     choices=list(MODEL_CONFIGS.keys()),
-                    help="Model to train: gpt2, 1b, or 3b")
+                    help="Model to train: gpt2, llama_1b, or llama_3b")
 parser.add_argument("--tp", type=int, default=1, help="Tensor parallelism degree")
 parser.add_argument("--pp", type=int, default=1, help="Pipeline parallelism degree")
-parser.add_argument("--dp", type=int, default=4, help="Data parallelism degree")
+parser.add_argument("--dp", type=int, default=None,
+                    help="Data parallelism degree (default: num_gpus / (tp*pp))")
+
+# Training
 parser.add_argument("--train-iters", type=int, default=200,
                     help="Number of training iterations (main control for run duration)")
 parser.add_argument("--micro-batch-size", type=int, default=2,
@@ -117,12 +137,43 @@ parser.add_argument("--global-batch-size", type=int, default=16,
                     help="Global batch size across all GPUs")
 parser.add_argument("--seq-length", type=int, default=None,
                     help="Override default sequence length for the model")
+
+# Cluster / container setup
+parser.add_argument("--num-gpus", type=int,
+                    default=int(os.environ.get("NUM_GPUS", DEFAULT_NUM_GPUS)),
+                    help="Number of GPUs (default: $NUM_GPUS or 4)")
+parser.add_argument("--container-image", type=str,
+                    default=os.environ.get("CONTAINER_IMAGE", DEFAULT_CONTAINER_IMAGE),
+                    help="Path to Apptainer .sif image")
+parser.add_argument("--container-bind", type=str, action="append", default=None,
+                    help="Bind mount (host:container). Repeatable. "
+                         "Overrides defaults when used.")
+parser.add_argument("--megatron-dir", type=str,
+                    default=os.environ.get("MEGATRON_DIR", DEFAULT_MEGATRON_DIR),
+                    help="Megatron-LM directory inside the container")
+
 parser.add_argument("--dry-run", action="store_true",
                     help="Print the full command without running")
 
 args, extra_megatron_args = parser.parse_known_args()
 
-TP, PP, DP = args.tp, args.pp, args.dp
+# ── Resolve cluster config ────────────────────────────────────────────
+NUM_GPUS = args.num_gpus
+CONTAINER_IMAGE = args.container_image
+MEGATRON_DIR = args.megatron_dir
+PRETRAIN_SCRIPT = os.path.join(MEGATRON_DIR, "pretrain_gpt.py")
+
+if args.container_bind:
+    CONTAINER_BINDS = args.container_bind
+elif os.environ.get("CONTAINER_BINDS"):
+    CONTAINER_BINDS = os.environ["CONTAINER_BINDS"].split(",")
+else:
+    CONTAINER_BINDS = DEFAULT_CONTAINER_BINDS
+
+# ── Resolve parallelism ──────────────────────────────────────────────
+TP, PP = args.tp, args.pp
+DP = args.dp if args.dp is not None else NUM_GPUS // (TP * PP)
+
 assert TP * PP * DP == NUM_GPUS, (
     f"TP({TP}) × PP({PP}) × DP({DP}) = {TP*PP*DP}, expected {NUM_GPUS}"
 )
@@ -149,7 +200,6 @@ LOG_FILE = os.path.join(RESULTS_DIR, f"tp{TP}_pp{PP}_dp{DP}_power.csv")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # ── Build Megatron command ────────────────────────────────────────────
-# Wrap torchrun inside the Apptainer container
 apptainer_prefix = ["apptainer", "exec", "--nv"]
 for bind in CONTAINER_BINDS:
     apptainer_prefix += ["--bind", bind]
@@ -220,6 +270,8 @@ cmd += extra_megatron_args
 tag = f"{args.model} TP={TP} PP={PP} DP={DP}"
 print(f"\n{'='*50}")
 print(f"  Training: {tag}")
+print(f"  GPUs:     {NUM_GPUS}")
+print(f"  Image:    {CONTAINER_IMAGE}")
 print(f"  Log:      {LOG_FILE}")
 print(f"{'='*50}\n")
 
