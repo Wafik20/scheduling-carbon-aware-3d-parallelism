@@ -1,0 +1,6 @@
+[
+    {"phase": 1, "start_step": 0,   "end_step": 50,  "tp": 2, "pp": 2},
+    {"phase": 2, "start_step": 50,  "end_step": 100, "tp": 1, "pp": 1},
+    {"phase": 3, "start_step": 100, "end_step": 150, "tp": 4, "pp": 1},
+    {"phase": 4, "start_step": 150, "end_step": 200, "tp": 2, "pp": 1}
+]
