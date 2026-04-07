@@ -36,6 +36,16 @@ MODEL_CONSTRAINTS = {
         "num_attention_heads": 12,
         "num_query_groups": None,
     },
+    "gpt2_medium": {
+        "num_layers": 24,
+        "num_attention_heads": 16,
+        "num_query_groups": None,
+    },
+    "gpt2_large": {
+        "num_layers": 36,
+        "num_attention_heads": 20,
+        "num_query_groups": None,
+    },
     "llama_1b": {
         "num_layers": 16,
         "num_attention_heads": 32,
@@ -84,7 +94,8 @@ def main():
     # Model & training
     parser.add_argument("--model", type=str, required=True,
                         choices=list(MODEL_CONSTRAINTS.keys()) + ["all"],
-                        help="Model to benchmark: gpt2, llama_1b, llama_3b, or 'all'")
+                        help="Model to benchmark: gpt2, gpt2_medium, gpt2_large, "
+                             "llama_1b, llama_3b, or 'all'")
     parser.add_argument("--train-iters", type=int, default=200,
                         help="Number of training iterations per config")
     parser.add_argument("--micro-batch-size", type=int, default=2,

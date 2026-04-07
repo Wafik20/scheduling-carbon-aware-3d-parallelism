@@ -2,7 +2,9 @@
 train.py
 --------
 Unified Megatron training script with power monitoring for:
-  - GPT-2 Small (124M)
+  - GPT-2 Small  (124M)
+  - GPT-2 Medium (355M)
+  - GPT-2 Large  (774M)
   - LLaMA 3.2 1B
   - LLaMA 3.2 3B
 
@@ -33,6 +35,7 @@ Environment variables (override defaults):
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 
@@ -49,6 +52,10 @@ DEFAULT_MEGATRON_DIR = "/opt/megatron-lm"
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# ── Regex to capture Megatron's iteration log lines ───────────────────
+# Megatron prints lines like:  " iteration       10/     200 | ..."
+_ITER_RE = re.compile(r"iteration\s+(\d+)/")
+
 # ── Model configs ─────────────────────────────────────────────────────
 MODEL_CONFIGS = {
     "gpt2": {
@@ -56,6 +63,26 @@ MODEL_CONFIGS = {
         "hidden_size": 768,
         "ffn_hidden_size": None,
         "num_attention_heads": 12,
+        "num_query_groups": None,
+        "seq_length": 1024,
+        "vocab_size": 50257,
+        "extra_args": [],
+    },
+    "gpt2_medium": {
+        "num_layers": 24,
+        "hidden_size": 1024,
+        "ffn_hidden_size": None,
+        "num_attention_heads": 16,
+        "num_query_groups": None,
+        "seq_length": 1024,
+        "vocab_size": 50257,
+        "extra_args": [],
+    },
+    "gpt2_large": {
+        "num_layers": 36,
+        "hidden_size": 1280,
+        "ffn_hidden_size": None,
+        "num_attention_heads": 20,
         "num_query_groups": None,
         "seq_length": 1024,
         "vocab_size": 50257,
@@ -122,7 +149,7 @@ parser = argparse.ArgumentParser(
 # Model & parallelism
 parser.add_argument("--model", type=str, required=True,
                     choices=list(MODEL_CONFIGS.keys()),
-                    help="Model to train: gpt2, llama_1b, or llama_3b")
+                    help="Model to train: gpt2, gpt2_medium, gpt2_large, llama_1b, or llama_3b")
 parser.add_argument("--tp", type=int, default=1, help="Tensor parallelism degree")
 parser.add_argument("--pp", type=int, default=1, help="Pipeline parallelism degree")
 parser.add_argument("--dp", type=int, default=None,
@@ -194,8 +221,7 @@ if cfg["num_query_groups"] is not None:
     )
 
 # ── Paths ─────────────────────────────────────────────────────────────
-LOG_SUBDIRS = {"gpt2": "gpt2", "llama_1b": "llama_1b", "llama_3b": "llama_3b"}
-RESULTS_DIR = os.path.join(PROJECT_DIR, "power_logs", LOG_SUBDIRS[args.model])
+RESULTS_DIR = os.path.join(PROJECT_DIR, "power_logs", args.model)
 LOG_FILE = os.path.join(RESULTS_DIR, f"tp{TP}_pp{PP}_dp{DP}_power.csv")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
@@ -285,9 +311,24 @@ monitor = PowerMonitor(interval=0.5, log_file=LOG_FILE)
 monitor.start()
 
 try:
-    result = subprocess.run(cmd)
-    if result.returncode != 0:
-        print(f"Warning: training exited with code {result.returncode}", file=sys.stderr)
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,   # merge stderr into stdout
+        text=True,
+        bufsize=1,                   # line-buffered
+    )
+
+    for line in proc.stdout:
+        sys.stdout.write(line)       # echo everything to the terminal
+        m = _ITER_RE.search(line)
+        if m:
+            monitor.update_step(int(m.group(1)))
+
+    proc.wait()
+    if proc.returncode != 0:
+        print(f"Warning: training exited with code {proc.returncode}",
+              file=sys.stderr)
 finally:
     monitor.stop()
 
