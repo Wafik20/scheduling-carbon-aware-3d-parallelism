@@ -1,0 +1,8 @@
+Config,Type,Time(s),Avg Power(W),Total Energy(Wh),Total Carbon(gCO₂),Throughput(tok/s)
+"DP=4 (TP=1,PP=1)",Static,252.5,553.5,38.82,15.53,12977.4
+"TP=4 (PP=1,DP=1)",Static,607.5,453.1,76.46,30.58,5393.9
+"PP=4 (TP=1,DP=1)",Static,417.0,462.9,53.62,21.45,7858.0
+"TP=2,PP=2 (DP=1)",Static,537.5,445.6,66.54,26.61,6096.4
+"TP=2,DP=2 (PP=1)",Static,356.0,505.4,49.98,19.99,9204.5
+"PP=2,DP=2 (TP=1)",Static,345.0,492.5,47.2,18.88,9498.0
+Hybrid Schedule,Schedule,394.5,456.1,49.98,19.99,8306.2
