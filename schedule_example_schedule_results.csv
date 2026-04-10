@@ -1,3 +1,3 @@
 phase,config,dp,tp,pp,start_step,end_step,wall_s,reshard_s,train_s,avg_iter_ms,final_loss,is_reshard
-1,phase1_dp4_tp1_pp1,4,1,1,0,500,174.88,0.55,107.27,214.01,0.008704,False
-2,phase2_dp1_tp1_pp4,1,1,4,500,1000,219.38,1.8,192.61,383.31,0.006282,True
+1,phase1_dp2_tp1_pp2,2,1,2,0,500,239.39,0.5,166.81,327.81,0.008797,False
+2,phase2_dp4_tp1_pp1,4,1,1,500,1000,183.2,2.57,155.98,183.91,0.006266,True
