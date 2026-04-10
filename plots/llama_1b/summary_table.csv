@@ -1,0 +1,8 @@
+Config,Type,Time(s),Avg Power(W),Total Energy(Wh),Carbon Fixed@400(gCO₂),"Carbon Vary A=[1000, 400](gCO₂)",Throughput(tok/s)
+"DP=4 (TP=1,PP=1)",Static,701.5,621.1,121.03,48.41,76.32,4671.1
+"TP=4 (PP=1,DP=1)",Static,702.0,584.4,113.96,45.59,71.97,4667.8
+"PP=4 (TP=1,DP=1)",Static,568.0,629.5,99.31,39.73,68.01,5769.0
+"TP=2,PP=2 (DP=1)",Static,592.5,624.4,102.77,41.11,69.51,5530.5
+"TP=2,DP=2 (PP=1)",Static,595.0,659.8,109.05,43.62,73.58,5507.2
+"PP=2,DP=2 (TP=1)",Static,558.5,664.4,103.08,41.23,71.44,5867.1
+Hybrid Schedule,Schedule,929.5,533.0,137.62,55.05,85.07,3525.3
