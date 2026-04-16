@@ -10,9 +10,6 @@ the Apptainer container, wrapping with PowerMonitor for energy tracking.
 Usage:
     python train_elastic.py --model gpt2 --schedule elastic_schedule.json
     python train_elastic.py --model gpt2 --schedule elastic_schedule.json --dry-run
-
-Same pattern as train.py but uses elastic_pretrain.py instead of pretrain_gpt.py,
-eliminating the need for multiple torchrun calls between phases.
 """
 
 import argparse
@@ -22,7 +19,6 @@ import re
 import subprocess
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 
 from compute_power import PowerMonitor
@@ -40,7 +36,21 @@ DEFAULT_WORK_DIR = "/u/data3/wat29/carbon_training/elastic"
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = PROJECT_DIR
 
-_ITER_RE = re.compile(r"iteration\s+(\d+)/")
+# ── Regex patterns for extracting the current training step ──
+#
+# elastic_pretrain.py prints a per-step line with the GLOBAL iteration, e.g.:
+#     "    iter    510/1000 | loss: 10.85 | grad_norm: 0.0595"
+# The number on the left is already the global step, so we do NOT add any
+# phase offset — doing so would give 1010 instead of 510 at phase 2 start.
+#
+# The \b before `iter` avoids false matches on words like
+# `iterations_to_skip`, `grpo_iterations`, etc. in the argument dump.
+_ITER_RE   = re.compile(r"\biter\s+(\d+)\s*/\s*\d+")
+_STEP_RE   = re.compile(r"\[STEP\]\s+(\d+)")  # optional explicit heartbeat
+_CKPT_RE   = re.compile(r"saving checkpoint at iteration\s+(\d+)", re.IGNORECASE)
+_RESUME_RE = re.compile(r"Resuming from iteration:\s+(\d+)", re.IGNORECASE)
+_STEP_PATTERNS = (_STEP_RE, _ITER_RE, _CKPT_RE, _RESUME_RE)
+
 
 # ── Model configs (must match elastic_pretrain.py expectations) ──
 MODEL_CONFIGS = {
@@ -73,10 +83,8 @@ def build_elastic_cmd(cfg, schedule_path, n_gpus, megatron_dir, work_dir,
     cmd = [
         "torchrun", f"--nproc_per_node={n_gpus}",
         script,
-        # Elastic-specific args
         "--elastic-schedule", str(schedule_path),
         "--elastic-work-dir", str(work_dir),
-        # Standard Megatron args (first phase TP/PP for initialization)
         "--tensor-model-parallel-size", str(first_tp),
         "--pipeline-model-parallel-size", str(first_pp),
         "--num-layers", str(cfg["num_layers"]),
@@ -122,9 +130,27 @@ def build_apptainer_prefix(container_image, container_binds):
     prefix += [
         "--env", "CUDA_DEVICE_MAX_CONNECTIONS=1",
         "--env", "CUDA_HOME=/usr/local/cuda",
+        "--env", "PYTHONUNBUFFERED=1",
         container_image,
     ]
     return prefix
+
+
+# ── Step tracking ────────────────────────────────────────────
+
+def _extract_step(line):
+    """Return the global step from a log line, or None.
+
+    Tries patterns in priority order. First match wins. The monotonic
+    clamp in run_with_streaming prevents the final checkpoint-save line
+    (which echoes 'saving checkpoint at iteration 1000') from rewinding
+    the counter below already-reported higher training steps.
+    """
+    for pat in _STEP_PATTERNS:
+        m = pat.search(line)
+        if m:
+            return int(m.group(1))
+    return None
 
 
 # ── Streaming execution ──────────────────────────────────────
@@ -132,6 +158,7 @@ def build_apptainer_prefix(container_image, container_binds):
 def run_with_streaming(cmd, monitor, logfile=None):
     """Run command, streaming output and feeding PowerMonitor."""
     info = {"errors": [], "iter_ms": [], "losses": []}
+    max_step_seen = 0  # monotonic: never rewind
 
     lf = open(logfile, "w") if logfile else None
     try:
@@ -140,27 +167,41 @@ def run_with_streaming(cmd, monitor, logfile=None):
             text=True, bufsize=1,
         )
 
-        for line in proc.stdout:
+        for line in iter(proc.stdout.readline, ''):
             sys.stdout.write(line)
+            sys.stdout.flush()
             if lf:
                 lf.write(line)
                 lf.flush()
 
-            m = _ITER_RE.search(line)
-            if m:
-                monitor.update_step(int(m.group(1)))
+            step = _extract_step(line)
+            if step is not None:
+                # Clamp to monotonic. Checkpoint-save lines at the end of a
+                # phase echo the starting step of the phase we just finished,
+                # which would otherwise make the power CSV appear to rewind.
+                if step >= max_step_seen:
+                    max_step_seen = step
+                    try:
+                        monitor.update_step(step)
+                    except Exception as e:
+                        print(f"[train_elastic] update_step failed: {e}",
+                              file=sys.stderr, flush=True)
 
             if "elapsed time per iteration" in line:
                 m2 = re.search(r"elapsed time per iteration \(ms\): ([\d.]+)", line)
                 if m2:
                     info["iter_ms"].append(float(m2.group(1)))
 
-            if "lm loss:" in line:
+            m_loss = re.search(r"\|\s*loss:\s*([\d.eE+\-]+)", line)
+            if m_loss:
+                info["losses"].append(float(m_loss.group(1)))
+            elif "lm loss:" in line:
                 m2 = re.search(r"lm loss: ([\d.E+\-]+)", line)
                 if m2:
                     info["losses"].append(float(m2.group(1)))
 
-            for pat in ["RuntimeError:", "AssertionError:", "KeyError:", "TypeError:", "ModuleNotFoundError:"]:
+            for pat in ["RuntimeError:", "AssertionError:", "KeyError:",
+                        "TypeError:", "ModuleNotFoundError:"]:
                 if pat in line and "error_injection" not in line and "import" not in line:
                     info["errors"].append(line.strip())
 
@@ -199,7 +240,6 @@ def main():
 
     binds = args.container_bind or DEFAULT_CONTAINER_BINDS
 
-    # Load schedule to get first phase TP/PP and total iters
     schedule_path = os.path.abspath(args.schedule)
     with open(schedule_path) as f:
         schedule = json.load(f)
@@ -208,7 +248,6 @@ def main():
     first_pp = schedule[0]["pp"]
     total_iters = schedule[-1]["end_step"]
 
-    # Power log
     schedule_name = Path(args.schedule).stem
     log_dir = os.path.join(PROJECT_DIR, "power_logs", args.model)
     os.makedirs(log_dir, exist_ok=True)
@@ -228,14 +267,12 @@ def main():
     print("=" * 60)
     print()
 
-    # Build command
     megatron_cmd = build_elastic_cmd(
         cfg, schedule_path, args.num_gpus, args.megatron_dir, args.work_dir,
         first_tp, first_pp, total_iters,
         args.micro_batch_size, args.global_batch_size, seq_length,
         extra_args=extra,
     )
-    # Wrap with cd to megatron dir so imports work
     inner_cmd = f"cd {args.megatron_dir} && " + " ".join(megatron_cmd)
     full_cmd = build_apptainer_prefix(args.container_image, binds) + ["bash", "-c", inner_cmd]
 
@@ -244,7 +281,6 @@ def main():
         print("  " + " \\\n    ".join(full_cmd))
         return
 
-    # Start power monitoring
     monitor = PowerMonitor(interval=0.5, log_file=power_log)
     monitor.start()
 
