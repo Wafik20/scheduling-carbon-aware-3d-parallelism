@@ -1,8 +1,8 @@
-Config,Type,Time(s),Avg Power(W),Total Energy(Wh),Carbon Fixed@400(gCO₂),Carbon Vary A=[1000](gCO₂),Throughput(tok/s)
-"DP=4 (TP=1,PP=1)",Static,200.5,565.9,31.52,12.61,31.52,16343.1
-"TP=4 (PP=1,DP=1)",Static,550.5,457.1,69.9,27.96,69.9,5952.4
-"PP=4 (TP=1,DP=1)",Static,333.5,478.1,44.29,17.72,44.29,9825.5
-"TP=2,PP=2 (DP=1)",Static,418.0,466.2,54.13,21.65,54.13,7839.2
-"TP=2,DP=2 (PP=1)",Static,317.0,502.9,44.29,17.71,44.29,10336.9
-"PP=2,DP=2 (TP=1)",Static,256.0,519.5,36.94,14.78,36.94,12800.0
-Hybrid Schedule,Schedule,211.5,460.7,27.06,10.83,27.06,15493.1
+Config,Type,Time(s),Avg Power(W),Total Energy(Wh),Carbon Fixed@400(gCO₂),"Carbon Vary A=[1500, 300](gCO₂)",Throughput(tok/s)
+"DP=4 (TP=1,PP=1)",Static,200.5,565.9,31.52,12.61,47.22,16343.1
+"TP=4 (PP=1,DP=1)",Static,550.5,457.1,69.9,27.96,48.11,5952.4
+"PP=4 (TP=1,DP=1)",Static,333.5,473.3,43.85,17.54,43.02,9825.5
+"TP=2,PP=2 (DP=1)",Static,418.0,466.2,54.13,21.65,44.57,7839.2
+"TP=2,DP=2 (PP=1)",Static,317.0,502.9,44.29,17.71,45.18,10336.9
+"PP=2,DP=2 (TP=1)",Static,256.0,519.5,36.94,14.78,46.07,12800.0
+Hybrid Schedule,Schedule,343.0,495.7,47.23,18.89,41.98,9553.4
