@@ -1,4 +1,4 @@
 [
-  {"phase": 1, "start_step": 0,   "end_step": 300,  "tp": 4, "pp": 1, "dp": 1},
-  {"phase": 2, "start_step": 300, "end_step": 1000, "tp": 1, "pp": 1, "dp": 4}
+  {"phase": 1, "start_step": 0,   "end_step": 380,  "tp": 4, "pp": 1, "dp": 1},
+  {"phase": 2, "start_step": 380, "end_step": 1000, "tp": 1, "pp": 1, "dp": 4}
 ]

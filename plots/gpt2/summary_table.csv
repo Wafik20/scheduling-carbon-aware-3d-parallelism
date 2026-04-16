@@ -5,4 +5,4 @@ Config,Type,Time(s),Avg Power(W),Total Energy(Wh),Carbon Fixed@400(gCO₂),"Carb
 "TP=2,PP=2 (DP=1)",Static,418.0,466.2,54.13,21.65,44.57,7839.2
 "TP=2,DP=2 (PP=1)",Static,317.0,502.9,44.29,17.71,45.18,10336.9
 "PP=2,DP=2 (TP=1)",Static,256.0,519.5,36.94,14.78,46.07,12800.0
-Hybrid Schedule,Schedule,343.0,495.7,47.23,18.89,41.98,9553.4
+Hybrid Schedule,Schedule,358.0,486.0,48.33,19.33,41.49,9153.1
