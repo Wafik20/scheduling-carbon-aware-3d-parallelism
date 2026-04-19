@@ -9,7 +9,7 @@ the Apptainer container, wrapping with PowerMonitor for energy tracking.
 
 Usage:
     python train_elastic.py --model gpt2 --schedule elastic_schedule.json
-    python train_elastic.py --model gpt2 --schedule elastic_schedule.json --dry-run
+    python train_elastic.py --model llama_2b --schedule elastic_schedule.json --dry-run
 """
 
 import argparse
@@ -52,8 +52,37 @@ _RESUME_RE = re.compile(r"Resuming from iteration:\s+(\d+)", re.IGNORECASE)
 _STEP_PATTERNS = (_STEP_RE, _ITER_RE, _CKPT_RE, _RESUME_RE)
 
 
+# ── Shared LLaMA extra_args ──────────────────────────────────
+# All three LLaMA variants use identical architectural features:
+# GQA + RoPE + SwiGLU + RMSNorm + untied embeddings + distributed optimizer.
+# Factor the list out here so all three stay consistent and easy to change.
+_LLAMA_EXTRA_ARGS = [
+    "--group-query-attention",
+    "--position-embedding-type", "rope",
+    "--rotary-base", "500000", "--rotary-percent", "1.0",
+    "--swiglu", "--normalization", "RMSNorm",
+    "--disable-bias-linear",
+    "--attention-dropout", "0.0", "--hidden-dropout", "0.0",
+    "--untie-embeddings-and-output-weights",
+    "--use-distributed-optimizer",
+    "--transformer-impl", "local",
+    "--no-persist-layer-norm",
+    "--no-gradient-accumulation-fusion",
+]
+
+
 # ── Model configs (must match elastic_pretrain.py expectations) ──
+#
+# Divisibility constraints enforced by elastic_pretrain.py:
+#   num_layers % pp == 0          for each pp in {1, 2, 4}
+#   num_attention_heads % tp == 0 for each tp in {1, 2, 4}
+#   num_query_groups % tp == 0    (GQA models only)
+#
+# Memory targets for 4× L40 (46 GB each) at seq=2048, MBS=1, BF16,
+# distributed optimizer. Static-state estimate is 7 × P bytes per GPU
+# on DP=4; add ~1-5 GB for activations depending on seq_length.
 MODEL_CONFIGS = {
+    # ── GPT-2 family (standard MHA) ──────────────────────────
     "gpt2": {
         "num_layers": 12, "hidden_size": 768, "ffn_hidden_size": None,
         "num_attention_heads": 12, "num_query_groups": None,
@@ -68,6 +97,41 @@ MODEL_CONFIGS = {
         "num_layers": 36, "hidden_size": 1280, "ffn_hidden_size": None,
         "num_attention_heads": 20, "num_query_groups": None,
         "seq_length": 1024, "vocab_size": 50257, "extra_args": [],
+    },
+
+    # ── LLaMA family (GQA + SwiGLU + RoPE + RMSNorm) ─────────
+    # ~1B params; 16 layers, hidden 2048, GQA with 8 KV heads.
+    # Static on DP=4: ~7 GB/GPU. Fits easily.
+    "llama_1b": {
+        "num_layers": 16, "hidden_size": 2048, "ffn_hidden_size": 8192,
+        "num_attention_heads": 32, "num_query_groups": 8,
+        "seq_length": 256, "vocab_size": 128256,
+        "extra_args": _LLAMA_EXTRA_ARGS,
+    },
+    # ~2B params; shrunk from canonical LLaMA-3B (3072 hidden, 24 heads,
+    # 8 KV) to fit DP=4 comfortably on 4× L40. Preserves GQA + SwiGLU +
+    # RoPE + RMSNorm architecture. Static on DP=4: ~14 GB/GPU.
+    # Divisibility: 28 layers (div 1,2,4), 20 heads (div 1,2,4),
+    # 4 KV heads (div 1,2,4 — each TP rank gets exactly 1 at TP=4).
+    "llama_2b": {
+        "num_layers": 28, "hidden_size": 2560, "ffn_hidden_size": 6912,
+        "num_attention_heads": 20, "num_query_groups": 4,
+        "seq_length": 256, "vocab_size": 128256,
+        "extra_args": _LLAMA_EXTRA_ARGS,
+    },
+    # ~2.2B params; shrunk from canonical LLaMA-3.2-3B (28 layers × 3072
+    # hidden = 3.2B) to 20 layers. Original 24-layer attempt hit a mid-run
+    # OOM during the distributed-optimizer allgather (needed ~12 GB temp
+    # buffer + ~19 GB static = ~41 GB peak per GPU, fragmenting into the
+    # 46 GB L40 ceiling). 20 layers cuts static by ~17% and leaves real
+    # headroom. Keeps the 3072 hidden dim (the defining feature of the
+    # "3B tier"). Divisibility: 20 % {1,2,4} == 0, 24 heads % {1,2,4} == 0,
+    # 8 KV heads % {1,2,4} == 0.
+    "llama_3b": {
+        "num_layers": 20, "hidden_size": 3072, "ffn_hidden_size": 8192,
+        "num_attention_heads": 24, "num_query_groups": 8,
+        "seq_length": 256, "vocab_size": 128256,
+        "extra_args": _LLAMA_EXTRA_ARGS,
     },
 }
 
@@ -131,6 +195,11 @@ def build_apptainer_prefix(container_image, container_binds):
         "--env", "CUDA_DEVICE_MAX_CONNECTIONS=1",
         "--env", "CUDA_HOME=/usr/local/cuda",
         "--env", "PYTHONUNBUFFERED=1",
+        # Reduces memory fragmentation — recommended by the OOM error msg.
+        # Important for tight-memory runs like llama_3b on DP=4, where
+        # the distributed optimizer's allgather temp buffer can push
+        # peak usage over the L40 ceiling if memory is fragmented.
+        "--env", "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True",
         container_image,
     ]
     return prefix

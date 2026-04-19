@@ -1,0 +1,64 @@
+model,schedule,start_ts,end_ts,duration_s,exit_code,pre_check_contam,post_check_contam
+llama_1b,tp1_pp1_dp4,2026-04-18T19:47:02,2026-04-18T19:54:06,424,0,[check] before_llama_1b_tp1_pp1_dp4  CLEAN  (my_gpus=[], total_power=137.6W)
+no,[check] after_llama_1b_tp1_pp1_dp4  CLEAN  (my_gpus=[], total_power=357.9W)
+no
+llama_1b,tp4_pp1_dp1,2026-04-18T19:54:16,2026-04-18T20:10:16,960,0,[check] before_llama_1b_tp4_pp1_dp1  CLEAN  (my_gpus=[], total_power=151.6W)
+no,[check] after_llama_1b_tp4_pp1_dp1  CLEAN  (my_gpus=[], total_power=343.4W)
+no
+llama_1b,tp1_pp4_dp1,2026-04-18T20:10:27,2026-04-18T20:19:09,522,0,[check] before_llama_1b_tp1_pp4_dp1  CLEAN  (my_gpus=[], total_power=142.6W)
+no,[check] after_llama_1b_tp1_pp4_dp1  CLEAN  (my_gpus=[], total_power=346.8W)
+no
+llama_1b,tp2_pp2_dp1,2026-04-18T20:19:19,2026-04-18T20:31:28,729,0,[check] before_llama_1b_tp2_pp2_dp1  CLEAN  (my_gpus=[], total_power=146.4W)
+no,[check] after_llama_1b_tp2_pp2_dp1  CLEAN  (my_gpus=[], total_power=342.4W)
+no
+llama_1b,tp2_pp1_dp2,2026-04-18T20:31:38,2026-04-18T20:40:57,559,0,[check] before_llama_1b_tp2_pp1_dp2  CLEAN  (my_gpus=[], total_power=143.7W)
+no,[check] after_llama_1b_tp2_pp1_dp2  CLEAN  (my_gpus=[], total_power=336.8W)
+no
+llama_1b,tp1_pp2_dp2,2026-04-18T20:41:08,2026-04-18T20:48:22,434,0,[check] before_llama_1b_tp1_pp2_dp2  CLEAN  (my_gpus=[], total_power=147.5W)
+no,[check] after_llama_1b_tp1_pp2_dp2  CLEAN  (my_gpus=[], total_power=360.7W)
+no
+llama_1b,example_schedule,2026-04-18T20:48:32,2026-04-18T21:00:57,745,0,[check] before_llama_1b_example_schedule  CLEAN  (my_gpus=[], total_power=150.7W)
+no,[check] after_llama_1b_example_schedule  CLEAN  (my_gpus=[], total_power=352.8W)
+no
+llama_2b,tp1_pp1_dp4,2026-04-18T21:01:10,2026-04-18T21:12:19,669,0,[check] before_llama_2b_tp1_pp1_dp4  CLEAN  (my_gpus=[], total_power=149.4W)
+no,[check] after_llama_2b_tp1_pp1_dp4  CLEAN  (my_gpus=[], total_power=360.4W)
+no
+llama_2b,tp4_pp1_dp1,2026-04-18T21:12:29,2026-04-18T21:35:21,1372,0,[check] before_llama_2b_tp4_pp1_dp1  CLEAN  (my_gpus=[], total_power=150.6W)
+no,[check] after_llama_2b_tp4_pp1_dp1  CLEAN  (my_gpus=[], total_power=344.0W)
+no
+llama_2b,tp1_pp4_dp1,2026-04-18T21:35:31,2026-04-18T21:47:43,732,0,[check] before_llama_2b_tp1_pp4_dp1  CLEAN  (my_gpus=[], total_power=145.3W)
+no,[check] after_llama_2b_tp1_pp4_dp1  CLEAN  (my_gpus=[], total_power=357.5W)
+no
+llama_2b,tp2_pp2_dp1,2026-04-18T21:47:53,2026-04-18T22:04:13,980,0,[check] before_llama_2b_tp2_pp2_dp1  CLEAN  (my_gpus=[], total_power=149.4W)
+no,[check] after_llama_2b_tp2_pp2_dp1  CLEAN  (my_gpus=[], total_power=333.7W)
+no
+llama_2b,tp2_pp1_dp2,2026-04-18T22:04:23,2026-04-18T22:18:47,864,0,[check] before_llama_2b_tp2_pp1_dp2  CLEAN  (my_gpus=[], total_power=145.3W)
+no,[check] after_llama_2b_tp2_pp1_dp2  CLEAN  (my_gpus=[], total_power=358.9W)
+no
+llama_2b,tp1_pp2_dp2,2026-04-18T22:18:58,2026-04-18T22:30:16,678,0,[check] before_llama_2b_tp1_pp2_dp2  CLEAN  (my_gpus=[], total_power=148.7W)
+no,[check] after_llama_2b_tp1_pp2_dp2  CLEAN  (my_gpus=[], total_power=373.4W)
+no
+llama_2b,example_schedule,2026-04-18T22:30:26,2026-04-18T22:49:09,1123,0,[check] before_llama_2b_example_schedule  CLEAN  (my_gpus=[], total_power=152.2W)
+no,[check] after_llama_2b_example_schedule  CLEAN  (my_gpus=[], total_power=356.5W)
+no
+llama_3b,tp1_pp1_dp4,2026-04-18T22:49:22,2026-04-18T23:01:11,709,0,[check] before_llama_3b_tp1_pp1_dp4  CLEAN  (my_gpus=[], total_power=147.9W)
+no,[check] after_llama_3b_tp1_pp1_dp4  CLEAN  (my_gpus=[], total_power=371.0W)
+no
+llama_3b,tp4_pp1_dp1,2026-04-18T23:01:22,2026-04-18T23:20:11,1129,0,[check] before_llama_3b_tp4_pp1_dp1  CLEAN  (my_gpus=[], total_power=149.4W)
+no,[check] after_llama_3b_tp4_pp1_dp1  CLEAN  (my_gpus=[], total_power=340.7W)
+no
+llama_3b,tp1_pp4_dp1,2026-04-18T23:20:21,2026-04-18T23:32:22,721,0,[check] before_llama_3b_tp1_pp4_dp1  CLEAN  (my_gpus=[], total_power=145.0W)
+no,[check] after_llama_3b_tp1_pp4_dp1  CLEAN  (my_gpus=[], total_power=358.1W)
+no
+llama_3b,tp2_pp2_dp1,2026-04-18T23:32:32,2026-04-18T23:45:56,804,0,[check] before_llama_3b_tp2_pp2_dp1  CLEAN  (my_gpus=[], total_power=150.3W)
+no,[check] after_llama_3b_tp2_pp2_dp1  CLEAN  (my_gpus=[], total_power=354.0W)
+no
+llama_3b,tp2_pp1_dp2,2026-04-18T23:46:06,2026-04-18T23:57:59,713,0,[check] before_llama_3b_tp2_pp1_dp2  CLEAN  (my_gpus=[], total_power=150.8W)
+no,[check] after_llama_3b_tp2_pp1_dp2  CLEAN  (my_gpus=[], total_power=364.9W)
+no
+llama_3b,tp1_pp2_dp2,2026-04-18T23:58:09,2026-04-19T00:09:23,673,0,[check] before_llama_3b_tp1_pp2_dp2  CLEAN  (my_gpus=[], total_power=151.9W)
+no,[check] after_llama_3b_tp1_pp2_dp2  CLEAN  (my_gpus=[], total_power=365.1W)
+no
+llama_3b,example_schedule,2026-04-19T00:09:33,2026-04-19T00:27:04,1051,0,[check] before_llama_3b_example_schedule  CLEAN  (my_gpus=[], total_power=153.2W)
+no,[check] after_llama_3b_example_schedule  CLEAN  (my_gpus=[], total_power=376.1W)
+no
