@@ -128,7 +128,12 @@ MODEL_CONFIGS = {
     # "3B tier"). Divisibility: 20 % {1,2,4} == 0, 24 heads % {1,2,4} == 0,
     # 8 KV heads % {1,2,4} == 0.
     "llama_3b": {
-        "num_layers": 20, "hidden_size": 3072, "ffn_hidden_size": 8192,
+        # Canonical LLaMA-3.2-3B: 28 layers × 3072 hidden. Fits on 4× L40
+        # with DP=4 (static ~27 GB/GPU, activations ~2 GB = ~29 GB peak).
+        # The previous 24-layer attempt OOM'd on the fully-reshardable save
+        # allgather; the current elastic_pretrain.py skips the final save
+        # for all last-phase checkpoints, eliminating that OOM path.
+        "num_layers": 28, "hidden_size": 3072, "ffn_hidden_size": 8192,
         "num_attention_heads": 24, "num_query_groups": 8,
         "seq_length": 256, "vocab_size": 128256,
         "extra_args": _LLAMA_EXTRA_ARGS,
