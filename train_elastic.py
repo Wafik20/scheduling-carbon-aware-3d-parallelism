@@ -70,6 +70,22 @@ _LLAMA_EXTRA_ARGS = [
     "--no-gradient-accumulation-fusion",
 ]
 
+# ── Pythia family (GPT-NeoX style: MHA + RoPE-25% + GELU + LayerNorm) ──
+# Same architecture across sizes; only depth/width scale. Uses biases
+# in linear layers (unlike Llama) and standard LayerNorm (not RMSNorm).
+# RoPE is applied to only 25% of each head's dimensions.
+_PYTHIA_EXTRA_ARGS = [
+    "--position-embedding-type", "rope",
+    "--rotary-base", "10000", "--rotary-percent", "0.25",
+    "--untie-embeddings-and-output-weights",
+    "--use-distributed-optimizer",
+    "--transformer-impl", "local",
+    "--no-persist-layer-norm",
+    "--no-gradient-accumulation-fusion",
+    "--attention-softmax-in-fp32",
+
+]
+
 
 # ── Model configs (must match elastic_pretrain.py expectations) ──
 #
@@ -137,6 +153,35 @@ MODEL_CONFIGS = {
         "num_attention_heads": 24, "num_query_groups": 8,
         "seq_length": 256, "vocab_size": 128256,
         "extra_args": _LLAMA_EXTRA_ARGS,
+    },
+    # ── Pythia family ────────────────────────────────────────
+    # Pythia-410M: 24L × 1024h × 16H. Smallest clean-scaling point.
+    # Static on DP=4: ~2.9 GB/GPU. Fits trivially.
+    # Divisibility: 24 % {1,2,4} == 0, 16 % {1,2,4} == 0.
+    "pythia_410m": {
+        "num_layers": 24, "hidden_size": 1024, "ffn_hidden_size": 4096,
+        "num_attention_heads": 16, "num_query_groups": None,
+        "seq_length": 1024, "vocab_size": 50304,
+        "extra_args": _PYTHIA_EXTRA_ARGS,
+    },
+    # Pythia-1.4B: 24L × 2048h × 16H. Same depth/heads as 410M, 2× width.
+    # Static on DP=4: ~9.8 GB/GPU. Comfortable.
+    # Divisibility: 24 % {1,2,4} == 0, 16 % {1,2,4} == 0.
+    "pythia_1_4b": {
+        "num_layers": 24, "hidden_size": 2048, "ffn_hidden_size": 8192,
+        "num_attention_heads": 16, "num_query_groups": None,
+        "seq_length": 1024, "vocab_size": 50304,
+        "extra_args": _PYTHIA_EXTRA_ARGS,
+    },
+    # Pythia-2.8B: 32L × 2560h × 32H. Deeper AND wider than 1.4B.
+    # Static on DP=4: ~19.6 GB/GPU; activations at seq=1024 add ~4-6 GB.
+    # If OOM, drop seq_length to 512 — the scaling story is unaffected.
+    # Divisibility: 32 % {1,2,4} == 0, 32 % {1,2,4} == 0.
+    "pythia_2_8b": {
+        "num_layers": 32, "hidden_size": 2560, "ffn_hidden_size": 10240,
+        "num_attention_heads": 32, "num_query_groups": None,
+        "seq_length": 1024, "vocab_size": 50304,
+        "extra_args": _PYTHIA_EXTRA_ARGS,
     },
 }
 
