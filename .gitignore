@@ -219,3 +219,4 @@ data/
 
 # misc
 .codex
+slurm_logs/
