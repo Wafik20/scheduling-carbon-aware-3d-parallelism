@@ -2,7 +2,7 @@
 #SBATCH --job-name=online-elastic
 #SBATCH --clusters=gpu
 #SBATCH --account=cs2770_2026s
-#SBATCH --partition=a100
+#SBATCH --partition=a100_nvlink
 #SBATCH --qos=normal
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1

@@ -2,7 +2,7 @@
 #SBATCH --job-name=gpt2m-sweep
 #SBATCH --clusters=gpu
 #SBATCH --account=cs2770_2026s
-#SBATCH --partition=a100_multi
+#SBATCH --partition=a100_nvlink
 #SBATCH --qos=normal
 #SBATCH --nodes=4
 #SBATCH --ntasks-per-node=1

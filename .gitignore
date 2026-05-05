@@ -220,3 +220,4 @@ data/
 # misc
 .codex
 slurm_logs/
+runs/*/elastic_ckpt

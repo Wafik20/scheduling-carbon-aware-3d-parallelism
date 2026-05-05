@@ -1,14 +1,12 @@
 {
   "strategies": [
-    {"tp": 1, "pp": 1, "power_w": 1200.0, "step_time_s": 2.0},
-    {"tp": 2, "pp": 1, "power_w": 1100.0, "step_time_s": 2.5},
-    {"tp": 4, "pp": 1, "power_w": 1000.0, "step_time_s": 3.5},
-    {"tp": 1, "pp": 2, "power_w":  900.0, "step_time_s": 3.0},
-    {"tp": 1, "pp": 4, "power_w":  800.0, "step_time_s": 4.5}
+    {"tp": 1, "pp": 1, "power_w": 800.0, "step_time_s": 0.20},
+    {"tp": 1, "pp": 4, "power_w": 400.0, "step_time_s": 0.40}
   ],
-  "switch_time_s": 60.0,
-  "switch_power_w": 600.0,
-  "deadline_s": 43200.0,
+  "switch_time_s": 8.0,
+  "switch_power_w": 400.0,
+  "deadline_s": 600.0,
   "lookahead_steps": 200,
-  "decide_every": 50
+  "decide_every": 50,
+  "seconds_per_forecast_bucket": 8.0
 }
