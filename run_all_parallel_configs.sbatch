@@ -4,7 +4,7 @@
 #SBATCH --account=cs2770_2026s
 #SBATCH --partition=a100_multi
 #SBATCH --qos=normal
-#SBATCH --nodes=6
+#SBATCH --nodes=4
 #SBATCH --ntasks-per-node=1
 #SBATCH --gres=gpu:4
 #SBATCH --cpus-per-task=8
