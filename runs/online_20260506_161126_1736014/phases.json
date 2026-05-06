@@ -1,0 +1,36 @@
+[
+  {
+    "phase": 1,
+    "start_step": 0,
+    "end_step": 50,
+    "tp": 1,
+    "pp": 1,
+    "dp": 4,
+    "num_steps": 50,
+    "reconfig_s": 0.24,
+    "train_s": 16.73,
+    "save_s": 49.45,
+    "avg_iter_ms": 334.6,
+    "observed_power_w": 548.4,
+    "observed_step_time_s": 0.3346,
+    "n_observations": 1,
+    "final_loss": 10.995735
+  },
+  {
+    "phase": 2,
+    "start_step": 50,
+    "end_step": 200,
+    "tp": 1,
+    "pp": 2,
+    "dp": 2,
+    "num_steps": 150,
+    "reconfig_s": 28.61,
+    "train_s": 39.52,
+    "save_s": 0.0,
+    "avg_iter_ms": 263.5,
+    "observed_power_w": 630.5,
+    "observed_step_time_s": 0.2634,
+    "n_observations": 3,
+    "final_loss": 10.85778
+  }
+]

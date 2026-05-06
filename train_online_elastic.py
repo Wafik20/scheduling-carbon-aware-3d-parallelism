@@ -9,12 +9,36 @@ streaming power monitor; the only difference is that the inner script
 (online_elastic_pretrain.py) decides phases at runtime from a strategies
 config + a CI-forecast CSV, instead of consuming a fixed schedule JSON.
 
-Usage:
-    python train_online_elastic.py --model llama_2b \\
-        --scheduler-config scheduler_config.json \\
-        --carbon-forecast data/carbon_synthetic_dataset.csv \\
-        --train-iters 10000
+Inputs:
+    --scheduler-config <path.json>   Calibration JSON from profile_strategies.py
+                                     (provides strategies + average_reshard_wall_time_s)
+    --carbon-forecast  <path.csv>    Hourly CI forecast (gCO2/kWh)
+    --train-iters      <int>         Total training iterations
 
+Policy parameters (required by inner script — provide via CLI here OR
+embed in scheduler-config JSON; CLI takes precedence):
+
+    --switch-power-w     <float>    Power draw during reshard (W)
+    --deadline-seconds   <float>    Total training deadline (s)
+    --lookahead-steps    <int>      Greedy lookahead horizon (steps)
+    --decide-every       <int>      Decision interval (steps)
+
+Optional overrides:
+
+    --switch-time-seconds <float>   Override JSON's average_reshard_wall_time_s
+    --bucket-seconds      <float>   Wall seconds per CI forecast row (default 3600)
+
+Usage:
+    python train_online_elastic.py --model gpt2_medium \\
+        --scheduler-config calibrations/calibration_gpt2_medium_4gpu.json \\
+        --carbon-forecast data/carbon_synthetic_dataset.csv \\
+        --train-iters 100000 \\
+        --switch-power-w 200 \\
+        --deadline-seconds 14400 \\
+        --lookahead-steps 8000 \\
+        --decide-every 1000
+
+    # Dry run:
     python train_online_elastic.py --model gpt2 \\
         --scheduler-config scheduler_config.json \\
         --carbon-forecast data/carbon_synthetic_dataset.csv \\
@@ -340,7 +364,7 @@ def main():
     parser.add_argument("--model", required=True,
                         choices=list(MODEL_CONFIGS.keys()))
     parser.add_argument("--scheduler-config", required=True,
-                        help="Path to scheduler JSON (strategies + scalars). "
+                        help="Path to scheduler/calibration JSON. "
                              "strategies[0] is treated as the initial config.")
     parser.add_argument("--carbon-forecast", required=True,
                         help="Path to CI forecast CSV (year,month,day,time,carbon)")
@@ -356,6 +380,25 @@ def main():
     parser.add_argument("--megatron-dir", type=str, default=DEFAULT_MEGATRON_DIR)
     parser.add_argument("--work-dir", type=str, default=DEFAULT_WORK_DIR)
     parser.add_argument("--dry-run", action="store_true")
+
+    # ── Policy parameters (forwarded to inner script) ────────
+    # Required by inner script — supply via CLI here OR embed in the
+    # scheduler-config JSON. CLI takes precedence when both are present.
+    # Policy lives at the launcher level so the same calibration JSON
+    # can drive multiple comparison runs (greedy / fast-only / slow-only)
+    # by varying only the CLI flags.
+    parser.add_argument("--switch-power-w", type=float, default=None,
+                        help="Power draw during reshard window (W).")
+    parser.add_argument("--deadline-seconds", type=float, default=None,
+                        help="Total training deadline (s).")
+    parser.add_argument("--lookahead-steps", type=int, default=None,
+                        help="Greedy lookahead horizon (steps).")
+    parser.add_argument("--decide-every", type=int, default=None,
+                        help="Decision interval (steps).")
+    parser.add_argument("--switch-time-seconds", type=float, default=None,
+                        help="Override calibration's average_reshard_wall_time_s.")
+    parser.add_argument("--bucket-seconds", type=float, default=None,
+                        help="Wall seconds per CI forecast row (default 3600).")
 
     args, extra = parser.parse_known_args()
     cfg = MODEL_CONFIGS[args.model]
@@ -376,6 +419,23 @@ def main():
     # Read initial (tp, pp) from strategies[0] in the JSON. The inner
     # script will re-validate that this matches exactly one entry.
     first_tp, first_pp = read_initial_tp_pp(scheduler_config_path)
+
+    # Build the policy-arg pass-through list. Only forward values that
+    # were actually specified on the CLI; otherwise the inner script's
+    # resolve() falls back to JSON. This lets the user mix sources.
+    policy_forwards = []
+    if args.switch_power_w is not None:
+        policy_forwards += ["--switch-power-w", str(args.switch_power_w)]
+    if args.deadline_seconds is not None:
+        policy_forwards += ["--deadline-seconds", str(args.deadline_seconds)]
+    if args.lookahead_steps is not None:
+        policy_forwards += ["--lookahead-steps", str(args.lookahead_steps)]
+    if args.decide_every is not None:
+        policy_forwards += ["--decide-every", str(args.decide_every)]
+    if args.switch_time_seconds is not None:
+        policy_forwards += ["--switch-time-seconds", str(args.switch_time_seconds)]
+    if args.bucket_seconds is not None:
+        policy_forwards += ["--bucket-seconds", str(args.bucket_seconds)]
 
     # Naming for the launcher's log + power CSV — keyed off the scheduler
     # config name so multiple configs against the same model don't collide.
@@ -399,15 +459,43 @@ def main():
     print(f"  Container:         {args.container_image}")
     print(f"  Work dir:          {args.work_dir}")
     print(f"  Power log:         {power_log}")
+
+    # Show resolved policy values where possible. CLI values override JSON;
+    # values not set on CLI will be picked up from JSON inside the inner script.
+    policy_lines = []
+    if args.switch_power_w is not None:
+        policy_lines.append(f"  switch_power_w:    {args.switch_power_w} W (CLI)")
+    if args.deadline_seconds is not None:
+        policy_lines.append(f"  deadline_s:        {args.deadline_seconds:.0f}s "
+                            f"({args.deadline_seconds/3600:.2f}h) (CLI)")
+    if args.lookahead_steps is not None:
+        policy_lines.append(f"  lookahead_steps:   {args.lookahead_steps} (CLI)")
+    if args.decide_every is not None:
+        policy_lines.append(f"  decide_every:      {args.decide_every} (CLI)")
+    if args.switch_time_seconds is not None:
+        policy_lines.append(f"  switch_time_s:     {args.switch_time_seconds}s "
+                            f"(CLI override)")
+    if args.bucket_seconds is not None:
+        policy_lines.append(f"  bucket_seconds:    {args.bucket_seconds}s (CLI)")
+    if policy_lines:
+        print("  Policy (CLI):")
+        for line in policy_lines:
+            print(line)
+    else:
+        print("  Policy:            entirely from JSON (no CLI overrides)")
+
     print("=" * 60)
     print()
+
+    # Combine policy pass-through with any other extras (Megatron args).
+    all_extra = policy_forwards + extra
 
     megatron_cmd = build_online_elastic_cmd(
         cfg, scheduler_config_path, carbon_forecast_path,
         args.num_gpus, args.megatron_dir, args.work_dir,
         first_tp, first_pp, args.train_iters,
         args.micro_batch_size, args.global_batch_size, seq_length,
-        extra_args=extra,
+        extra_args=all_extra,
     )
     inner_cmd = f"cd {args.megatron_dir} && " + " ".join(megatron_cmd)
     full_cmd = build_apptainer_prefix(args.container_image, binds) \
