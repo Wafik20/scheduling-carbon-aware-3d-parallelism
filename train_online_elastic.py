@@ -46,6 +46,7 @@ Usage:
 """
 
 import argparse
+import csv
 import json
 import os
 import re
@@ -186,7 +187,12 @@ def read_initial_tp_pp(scheduler_config_path: str):
     and online_elastic_pretrain.py validates that they match exactly one
     entry in the strategies list. Convention: strategies[0] is the initial
     state (matches GreedyScheduler's default initial_strategy_idx=0).
-    Reorder the JSON if you want a different starting config.
+
+    Pre-warm-start behavior: this used to mean "trust whatever happens to
+    sit at index 0 in the calibration JSON". Now warm_start_initial_strategy
+    runs the scheduler's step-0 logic before torchrun, possibly reordering
+    a temp JSON so the chosen strategy IS at index 0 — read_initial_tp_pp
+    is then called on that temp JSON and returns the chosen (tp, pp).
     """
     with open(scheduler_config_path) as f:
         cfg = json.load(f)
@@ -200,6 +206,151 @@ def read_initial_tp_pp(scheduler_config_path: str):
             f"{scheduler_config_path}: strategies[0] missing 'tp' or 'pp'"
         )
     return int(s0['tp']), int(s0['pp'])
+
+
+# ── Warm-start: pre-launch initial-strategy selection ────────
+#
+# Without this, the run starts at strategies[0] and stays there until
+# the inner scheduler's first decision point at step `decide_every`.
+# At decide_every=100 with DP=4 step time ~0.21s, that's ~21s spent on
+# whatever strategies[0] happens to be — possibly the worst choice for
+# the current CI window. Worse, the calibration JSON's initial-config
+# convention encodes a static preference that doesn't react to CI.
+#
+# These three helpers run the same lookahead arithmetic the inner
+# GreedyScheduler would run at step 0, before torchrun launches, and
+# write a temp JSON with the chosen strategy at index 0. The inner
+# scheduler's default initial_strategy_idx=0 then agrees with whatever
+# torchrun started at — no reshard at step 0, no wasted iterations.
+
+def _load_ci_trace(carbon_forecast_path):
+    """Read the CI forecast CSV, returning a list of carbon values.
+
+    Tolerates both the legacy (year, month, day, time, carbon) and the
+    simpler (timestamp, carbon) layouts. Only the 'carbon' column matters
+    here — bucket boundaries come from --bucket-seconds, not from any
+    timestamp column.
+    """
+    values = []
+    with open(carbon_forecast_path, newline='') as f:
+        reader = csv.DictReader(f)
+        if reader.fieldnames is None or 'carbon' not in reader.fieldnames:
+            raise ValueError(
+                f"{carbon_forecast_path}: no 'carbon' column "
+                f"(found: {reader.fieldnames})"
+            )
+        for row in reader:
+            values.append(float(row['carbon']))
+    if not values:
+        raise ValueError(f"{carbon_forecast_path}: empty CSV")
+    return values
+
+
+def _carbon_over_window(power_w, ci_values, bucket_seconds, t_start, t_end):
+    """Integrate emissions (gCO2) over [t_start, t_end] at constant power.
+
+    Walks the CI trace one bucket at a time, accumulating
+    `power × Δt × CI / 3.6e6`. Past the last bucket the last CI value
+    persists — matches the inner script's CI lookup behavior, which
+    pins the trailing edge rather than wrapping or erroring.
+    """
+    g = 0.0
+    t = float(t_start)
+    while t < t_end:
+        bucket_idx = int(t // bucket_seconds)
+        ci = ci_values[min(bucket_idx, len(ci_values) - 1)]
+        bucket_end = min((bucket_idx + 1) * bucket_seconds, t_end)
+        dt = bucket_end - t
+        g += power_w * dt * ci / 3.6e6
+        t = bucket_end
+    return g
+
+
+def warm_start_initial_strategy(scheduler_config_path, carbon_forecast_path,
+                                 train_iters, deadline_seconds, bucket_seconds,
+                                 work_dir):
+    """Run the scheduler's step-0 logic in the launcher, before torchrun.
+
+    For each feasible strategy s, compute the carbon if we ran the entire
+    job at s using s's calibrated step_time_s and power_w. Pick the lowest.
+    If that strategy isn't already at index 0, write a temp JSON with it
+    moved to index 0. Returns the path of the JSON to actually use; the
+    original file on disk is untouched.
+
+    Filtering: a strategy is INFEASIBLE if `train_iters × step_time_s`
+    exceeds the deadline. This matches the inner GreedyScheduler's
+    feasibility check, so a strategy this function rejects would also
+    be rejected by the scheduler — no risk of choosing something the
+    inner loop will then refuse.
+    """
+    with open(scheduler_config_path) as f:
+        cfg = json.load(f)
+    strategies = cfg['strategies']
+    ci_values = _load_ci_trace(carbon_forecast_path)
+
+    print("=" * 60)
+    print("  Warm-start: picking initial strategy")
+    print(f"  CI trace: {len(ci_values)} buckets × {bucket_seconds:.0f}s "
+          f"= {len(ci_values)*bucket_seconds:.0f}s coverage")
+    if deadline_seconds is not None:
+        print(f"  Deadline: {deadline_seconds:.0f}s, train_iters={train_iters}")
+    else:
+        print(f"  Deadline: none, train_iters={train_iters}")
+    print("-" * 60)
+
+    best_idx, best_carbon = None, float('inf')
+    for i, s in enumerate(strategies):
+        step_time = float(s['step_time_s'])
+        power     = float(s['power_w'])
+        tp, pp    = s['tp'], s['pp']
+        dp        = s.get('dp', s.get('data_parallel_size', '?'))
+        wall_time = train_iters * step_time
+
+        if deadline_seconds is not None and wall_time > deadline_seconds:
+            print(f"  [{i}] tp={tp},pp={pp},dp={dp}: "
+                  f"INFEASIBLE ({wall_time:.0f}s > {deadline_seconds:.0f}s)")
+            continue
+
+        carbon = _carbon_over_window(power, ci_values, bucket_seconds,
+                                      0.0, wall_time)
+        marker = ""
+        if carbon < best_carbon:
+            best_carbon, best_idx = carbon, i
+            marker = "  ← currently best"
+        print(f"  [{i}] tp={tp},pp={pp},dp={dp}: "
+              f"wall={wall_time:5.0f}s  carbon={carbon:6.2f}g{marker}")
+
+    if best_idx is None:
+        raise RuntimeError(
+            "No strategy fits within the deadline. Loosen --deadline-seconds, "
+            "lower --train-iters, or recalibrate."
+        )
+
+    chosen = strategies[best_idx]
+    print(f"  CHOSE strategies[{best_idx}]: "
+          f"tp={chosen['tp']},pp={chosen['pp']} ({best_carbon:.2f}g projected)")
+    print("=" * 60)
+    print()
+
+    # If the chosen strategy is already at index 0, nothing to do — the
+    # existing read_initial_tp_pp + GreedyScheduler default agree.
+    if best_idx == 0:
+        return scheduler_config_path
+
+    # Otherwise write a reordered copy to the per-run work dir.
+    cfg['strategies'] = (
+        [strategies[best_idx]]
+        + [s for j, s in enumerate(strategies) if j != best_idx]
+    )
+    os.makedirs(work_dir, exist_ok=True)
+    base = Path(scheduler_config_path).stem
+    out_path = os.path.join(work_dir, f"{base}_warmstarted.json")
+    with open(out_path, 'w') as f:
+        json.dump(cfg, f, indent=2)
+    print(f"[warmstart] wrote {out_path}")
+    print(f"[warmstart] strategies[0] is now: "
+          f"tp={cfg['strategies'][0]['tp']},pp={cfg['strategies'][0]['pp']}\n")
+    return out_path
 
 
 # ── Command building ─────────────────────────────────────────
@@ -469,8 +620,19 @@ def main():
             print(f"[fatal] --{label} not found: {path}", file=sys.stderr)
             sys.exit(2)
 
-    # Read initial (tp, pp) from strategies[0] in the JSON. The inner
-    # script will re-validate that this matches exactly one entry.
+    # Run the scheduler's step-0 logic in the launcher, before torchrun.
+    # Picks the strategy that minimizes carbon if it ran the entire job
+    # at the calibrated step time and power. If different from
+    # strategies[0], writes a reordered temp JSON so torchrun's initial
+    # (tp, pp) and the inner GreedyScheduler's initial_strategy_idx=0
+    # agree without touching the original calibration JSON on disk.
+    scheduler_config_path = warm_start_initial_strategy(
+        scheduler_config_path, carbon_forecast_path,
+        args.train_iters,
+        args.deadline_seconds,
+        args.bucket_seconds or 60.0,   # default 60s for short experiments
+        args.work_dir,
+    )
     first_tp, first_pp = read_initial_tp_pp(scheduler_config_path)
 
     # Build the policy-arg pass-through list. Only forward values that
@@ -507,7 +669,7 @@ def main():
     print(f"  Carbon forecast:   {carbon_forecast_path}")
     print(f"  Train iters:       {args.train_iters}")
     print(f"  Initial (TP, PP):  ({first_tp}, {first_pp}) "
-          f"← strategies[0]")
+          f"← warm-started")
     print(f"  GPUs:              {args.num_gpus}")
     print(f"  Container:         {args.container_image}")
     print(f"  Work dir:          {args.work_dir}")
