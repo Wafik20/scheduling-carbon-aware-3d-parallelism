@@ -18,6 +18,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -274,10 +275,51 @@ def _extract_step(line):
 
 # ── Streaming execution ──────────────────────────────────────
 
-def run_with_streaming(cmd, monitor, logfile=None):
-    """Run command, streaming output and feeding PowerMonitor."""
+def run_with_streaming(cmd, monitor, logfile=None, train_iters=None,
+                       grace_after_final_s=60.0, hard_kill_s=180.0):
+    """Run command, streaming output and feeding PowerMonitor.
+
+    Watchdog: once max_step_seen reaches train_iters, the inner script
+    SHOULD tear down quickly. If it doesn't — historically NCCL teardown
+    on PyTorch's atexit hook is unreliable, and explicit cleanup at
+    end-of-life can deadlock too — we SIGTERM after `grace_after_final_s`
+    and SIGKILL at `hard_kill_s`. Bounds the post-training tail in the
+    PowerMonitor log to ~60s instead of 200+, regardless of which
+    teardown path the inner script takes.
+    """
     info = {"errors": [], "iter_ms": [], "losses": []}
     max_step_seen = 0  # monotonic: never rewind
+    proc_box = {"p": None}      # mutable container so the watchdog can see it
+    final_at = {"t": None}      # wall-clock time we first hit train_iters
+    stop_wd = threading.Event()
+
+    def watchdog():
+        # Polls every 2s. Does nothing until we've seen the final iter,
+        # then enforces the grace + hard-kill timeouts.
+        while not stop_wd.wait(2.0):
+            p = proc_box["p"]
+            if p is None or p.poll() is not None:
+                return  # process already exited cleanly
+            t0 = final_at["t"]
+            if t0 is None:
+                continue
+            elapsed = time.time() - t0
+            if elapsed > hard_kill_s:
+                print(f"\n[watchdog] {elapsed:.0f}s after final iter — SIGKILL",
+                      file=sys.stderr, flush=True)
+                try: p.kill()
+                except Exception: pass
+                return
+            if elapsed > grace_after_final_s:
+                if not getattr(watchdog, "_termed", False):
+                    print(f"\n[watchdog] {elapsed:.0f}s after final iter "
+                          f"— SIGTERM (process appears hung in shutdown)",
+                          file=sys.stderr, flush=True)
+                    try: p.terminate()
+                    except Exception: pass
+                    watchdog._termed = True
+
+    wd_thread = threading.Thread(target=watchdog, daemon=True)
 
     lf = open(logfile, "w") if logfile else None
     try:
@@ -285,6 +327,8 @@ def run_with_streaming(cmd, monitor, logfile=None):
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, bufsize=1,
         )
+        proc_box["p"] = proc
+        wd_thread.start()
 
         for line in iter(proc.stdout.readline, ''):
             sys.stdout.write(line)
@@ -304,6 +348,15 @@ def run_with_streaming(cmd, monitor, logfile=None):
                         monitor.update_step(step)
                     except Exception as e:
                         print(f"[train_elastic] update_step failed: {e}",
+                              file=sys.stderr, flush=True)
+                    # Arm the watchdog the moment we observe the final iter.
+                    if (train_iters is not None
+                            and step >= train_iters
+                            and final_at["t"] is None):
+                        final_at["t"] = time.time()
+                        print(f"\n[watchdog] reached final iter {step}; "
+                              f"granting {grace_after_final_s:.0f}s for "
+                              f"clean shutdown",
                               file=sys.stderr, flush=True)
 
             if "elapsed time per iteration" in line:
@@ -326,6 +379,7 @@ def run_with_streaming(cmd, monitor, logfile=None):
 
         proc.wait()
     finally:
+        stop_wd.set()
         if lf:
             lf.close()
 
@@ -408,7 +462,8 @@ def main():
 
     t0 = time.perf_counter()
     try:
-        rc, info = run_with_streaming(full_cmd, monitor, logfile=logfile)
+        rc, info = run_with_streaming(full_cmd, monitor, logfile=logfile,
+                                      train_iters=total_iters)
     finally:
         monitor.stop()
 
