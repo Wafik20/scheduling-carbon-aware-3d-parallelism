@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=hybrid-only
+#SBATCH --job-name=naive-hybrid
 #SBATCH --clusters=gpu
 #SBATCH --account=cs2770_2026s
-#SBATCH --partition=a100_nvlink
+#SBATCH --partition=l40s
 #SBATCH --qos=normal
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -11,14 +11,20 @@
 #SBATCH --time=00:20:00
 #SBATCH --output=slurm_logs/%x-%j.out
 #
-# Hybrid-only sweep — skip the static baselines because their power CSVs
-# are already on disk from a previous full sweep. Use this for fast
-# iteration on the scheduler (warm-start, decide-every, lookahead, CI shape).
-# When the static baselines need refreshing — e.g., after a calibration
-# change or a model change — go back to run_short_sweep.sbatch.
+# Naive scheduler run using the hybrid-only batch shape.
+#
+# Strategies are defined in this sbatch and passed into train_naive_elastic.py:
+#   low:  TP=1 PP=1 DP=4   (fastest, highest power — when carbon is cheap)
+#   med:  TP=2 PP=1 DP=2   (middle ground)
+#   high: TP=4 PP=1 DP=1   (slowest, lowest power — when carbon is expensive)
+#
+# Carbon-trace mapping is now progress-based: the full CSV is replayed
+# exactly once across `train_iters` steps, regardless of actual wall time.
+# `min_dwell_steps` smooths the CI signal so a single-row spike or dip does
+# not trigger resharding (which would cost more than it saves).
 #
 # Override knobs via the environment, no need to edit the file:
-#   TRAIN_ITERS=750 DECIDE_EVERY=100 sbatch run_hybrid.sbatch
+#   TRAIN_ITERS=750 DECIDE_EVERY=50 MIN_DWELL_STEPS=200 sbatch run_hybrid.sbatch
 #
 set -euo pipefail
 
@@ -40,81 +46,66 @@ COMMON_BINDS=(
 # ── Knobs (override via env) ─────────────────────────────────
 MODEL=${MODEL:-gpt2_medium}
 TRAIN_ITERS=${TRAIN_ITERS:-750}
-DEADLINE_S=${DEADLINE_S:-400}
-BUCKET_SEC=${BUCKET_SEC:-60}
-SWITCH_POWER_W=${SWITCH_POWER_W:-200}
-LOOKAHEAD_STEPS=${LOOKAHEAD_STEPS:-600}
-DECIDE_EVERY=${DECIDE_EVERY:-100}
+DECIDE_EVERY=${DECIDE_EVERY:-50}
 
-CARBON_CSV="$PROJECT/data/carbon_short.csv"
-SCHED_CFG="$PROJECT/calibrations/calibration_gpt2_medium_4gpu.json"
+# Smoothing window: CI is averaged over [step, step+MIN_DWELL_STEPS]
+# before classifying the bucket. Rule of thumb: ~2× reshard_cost / step_time.
+# For the short hybrid run (reshard≈35s, step time 0.2–0.8s), 200 is a
+# reasonable starting point. Set to 0 to disable smoothing entirely.
+MIN_DWELL_STEPS=${MIN_DWELL_STEPS:-200}
+
+LOW_TP=${LOW_TP:-1}
+LOW_PP=${LOW_PP:-1}
+LOW_DP=${LOW_DP:-4}
+MED_TP=${MED_TP:-2}
+MED_PP=${MED_PP:-1}
+MED_DP=${MED_DP:-2}
+HIGH_TP=${HIGH_TP:-4}
+HIGH_PP=${HIGH_PP:-1}
+HIGH_DP=${HIGH_DP:-1}
+
+CARBON_CSV="$PROJECT/data/carbon_week.csv"
 POWER_DIR="$PROJECT/power_logs/$MODEL"
 
-# ── Sanity: confirm static CSVs exist on disk ────────────────
-# The visualizer reads these alongside the hybrid run to build the
-# comparison plot. If any are missing, the plot will show fewer
-# baselines and the verdict line may be misleading.
-EXPECTED_STATICS=(
-  "elastic_tp1_pp1_dp4_power.csv"
-  "elastic_tp1_pp2_dp2_power.csv"
-  "elastic_tp1_pp4_dp1_power.csv"
-  "elastic_tp2_pp1_dp2_power.csv"
-  "elastic_tp2_pp2_dp1_power.csv"
-  "elastic_tp4_pp1_dp1_power.csv"
-)
-
-missing=()
-for f in "${EXPECTED_STATICS[@]}"; do
-  if [[ ! -f "$POWER_DIR/$f" ]] || [[ ! -s "$POWER_DIR/$f" ]]; then
-    missing+=("$f")
-  fi
-done
-
-if (( ${#missing[@]} > 0 )); then
-  echo "[fatal] missing static baselines under $POWER_DIR :"
-  printf '         %s\n' "${missing[@]}"
-  echo
-  echo "        Run a full sweep first to generate them:"
-  echo "          sbatch run_short_sweep.sbatch"
-  echo "        Then come back to run_hybrid.sbatch for fast iteration."
-  exit 2
-fi
-
-# Also check the inputs the hybrid actually needs.
 [[ -f "$CARBON_CSV" ]] || { echo "[fatal] missing $CARBON_CSV"; exit 2; }
-[[ -f "$SCHED_CFG"  ]] || { echo "[fatal] missing $SCHED_CFG"; exit 2; }
+[[ -f "$CONTAINER"  ]] || { echo "[fatal] missing $CONTAINER"; exit 2; }
+[[ -d "$MEGATRON"   ]] || { echo "[fatal] missing $MEGATRON"; exit 2; }
 
 echo "[sweep] node=$(hostname)  start=$(date)"
 echo "[sweep] PROJECT=$PROJECT"
-echo "[sweep] MODEL=$MODEL  TRAIN_ITERS=$TRAIN_ITERS  DEADLINE_S=$DEADLINE_S"
-echo "[sweep] CARBON_CSV=$CARBON_CSV (bucket=${BUCKET_SEC}s)"
-echo "[sweep] SCHED_CFG=$SCHED_CFG"
-echo "[sweep] LOOKAHEAD_STEPS=$LOOKAHEAD_STEPS  DECIDE_EVERY=$DECIDE_EVERY"
-echo "[sweep] reusing static CSVs in $POWER_DIR (${#EXPECTED_STATICS[@]} found)"
+echo "[sweep] MODEL=$MODEL  TRAIN_ITERS=$TRAIN_ITERS"
+echo "[sweep] strategies: low=tp${LOW_TP}_pp${LOW_PP}_dp${LOW_DP}  med=tp${MED_TP}_pp${MED_PP}_dp${MED_DP}  high=tp${HIGH_TP}_pp${HIGH_PP}_dp${HIGH_DP}"
+echo "[sweep] CARBON_CSV=$CARBON_CSV"
+echo "[sweep] DECIDE_EVERY=$DECIDE_EVERY  MIN_DWELL_STEPS=$MIN_DWELL_STEPS"
+echo "[sweep] mapping: progress-based (CSV stretched across $TRAIN_ITERS steps)"
 echo
 
-# ── HYBRID PHASE ─────────────────────────────────────────────
-RUN_DIR_HY="$PROJECT/runs/hybrid_${SLURM_JOB_ID}"
+# ── NAIVE HYBRID PHASE ───────────────────────────────────────
+RUN_DIR_HY="$PROJECT/runs/naive_hybrid_${SLURM_JOB_ID}"
 mkdir -p "$RUN_DIR_HY"
-echo "[sweep] === HYBRID  start=$(date +%H:%M:%S)  RUN_DIR=$RUN_DIR_HY ==="
+echo "[sweep] === NAIVE HYBRID  start=$(date +%H:%M:%S)  RUN_DIR=$RUN_DIR_HY ==="
 
-python train_online_elastic.py \
-  --model              "$MODEL" \
-  --scheduler-config   "$SCHED_CFG" \
-  --carbon-forecast    "$CARBON_CSV" \
-  --train-iters        "$TRAIN_ITERS" \
-  --switch-power-w     "$SWITCH_POWER_W" \
-  --deadline-seconds   "$DEADLINE_S" \
-  --lookahead-steps    "$LOOKAHEAD_STEPS" \
-  --decide-every       "$DECIDE_EVERY" \
-  --bucket-seconds     "$BUCKET_SEC" \
-  --num-gpus           4 \
-  --work-dir           "$RUN_DIR_HY" \
+python train_naive_elastic.py \
+  --model           "$MODEL" \
+  --carbon-forecast "$CARBON_CSV" \
+  --train-iters     "$TRAIN_ITERS" \
+  --decide-every    "$DECIDE_EVERY" \
+  --min-dwell-steps "$MIN_DWELL_STEPS" \
+  --low-tp          "$LOW_TP" \
+  --low-pp          "$LOW_PP" \
+  --low-dp          "$LOW_DP" \
+  --med-tp          "$MED_TP" \
+  --med-pp          "$MED_PP" \
+  --med-dp          "$MED_DP" \
+  --high-tp         "$HIGH_TP" \
+  --high-pp         "$HIGH_PP" \
+  --high-dp         "$HIGH_DP" \
+  --num-gpus        4 \
+  --work-dir        "$RUN_DIR_HY" \
   "${COMMON_BINDS[@]}"
 
 echo
 echo "[sweep] done=$(date)"
-echo "[sweep] hybrid power log:  $POWER_DIR/online_elastic_$(basename "${SCHED_CFG%.json}")_power.csv"
 echo "[sweep] phases:            $RUN_DIR_HY/phases.json"
 echo "[sweep] inner summary:     $RUN_DIR_HY/elastic_results.json"
-echo "[sweep] next:              python visualize_carbon_short.py"
+echo "[sweep] power dir:         $POWER_DIR"

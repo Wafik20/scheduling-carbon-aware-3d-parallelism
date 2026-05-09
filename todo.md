@@ -1,4 +1,4 @@
-- BGFS VS AFS? 
-- GPU to GPU direct communication
+- BGFS VS AFS? (done)
+- GPU to GPU direct communication (implementation heavy, done)
 - Bucket strategy (high, med, low) carbon instead of greedy strategy
 - Three families: llama or opt? 
