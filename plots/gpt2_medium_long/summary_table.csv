@@ -1,0 +1,4 @@
+Config,Type,Wall(s),AvgPower(W),Energy(Wh),C_Fixed@400(g),C_Varying(g),Tput(tok/s)
+DP=4,Static,610.5,817.0,138.55,55.42,63.97,536740.4
+"TP=2,DP=2",Static,1272.0,642.9,227.16,90.86,85.71,257610.1
+Hybrid Schedule,Schedule,712.5,743.7,147.2,58.88,63.48,459901.8

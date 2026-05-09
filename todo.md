@@ -1,0 +1,4 @@
+- BGFS VS AFS? 
+- GPU to GPU direct communication
+- Bucket strategy (high, med, low) carbon instead of greedy strategy
+- Three families: llama or opt? 
