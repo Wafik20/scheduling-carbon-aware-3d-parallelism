@@ -221,3 +221,4 @@ data/
 .codex
 slurm_logs/
 runs/
+*.tar.gz

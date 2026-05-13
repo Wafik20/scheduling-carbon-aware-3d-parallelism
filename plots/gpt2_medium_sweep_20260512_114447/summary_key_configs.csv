@@ -1,0 +1,17 @@
+n_nodes,world_size,category,config,avg_steady_W,rank,of_n_configs,rank_pct,is_global_min,is_global_max
+2,8,TP=W,tp8_pp1_dp1,597.6,1,10,0.0,True,False
+2,8,DP=W,tp1_pp1_dp8,860.8,9,10,0.89,False,False
+2,8,PP=max,tp1_pp8_dp1,849.7,7,10,0.67,False,False
+2,8,DP=PP,tp1_pp4_dp2,857.5,8,10,0.78,False,False
+4,16,TP=W,tp16_pp1_dp1,1144.5,1,14,0.0,True,False
+4,16,DP=W,tp1_pp1_dp16,1321.1,12,14,0.85,False,False
+4,16,PP=max,tp1_pp8_dp2,1269.6,4,14,0.23,False,False
+4,16,DP=PP,tp1_pp4_dp4,1294.2,7,14,0.46,False,False
+6,24,TP=W,tp8_pp1_dp3,1768.1,10,18,0.53,False,False
+6,24,DP=W,tp1_pp1_dp24,1810.5,13,18,0.71,False,False
+6,24,PP=max,tp1_pp24_dp1,1708.2,1,18,0.0,True,False
+6,24,DP=PP,tp1_pp6_dp4,1719.6,4,18,0.18,False,False
+8,32,TP=W,tp16_pp1_dp2,2307.4,9,15,0.57,False,False
+8,32,DP=W,tp1_pp1_dp32,2237.9,3,15,0.14,False,False
+8,32,PP=max,tp4_pp8_dp1,2384.1,15,15,1.0,False,True
+8,32,DP=PP,tp1_pp8_dp4,2194.2,2,15,0.07,False,False
