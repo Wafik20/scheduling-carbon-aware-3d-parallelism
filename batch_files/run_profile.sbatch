@@ -27,7 +27,10 @@ python train_profile.py \
     --profile-menu "$PROJECT/profile_menu.json" \
     --output       "$PROJECT/calibrations/calibration_gpt2_medium_4gpu.json" \
     --num-gpus 4 \
-    --warmup-seconds 30 \
+    --warmup-min-seconds 10 \
+    --warmup-max-seconds 60 \
+    --warmup-window 10 \
+    --warmup-tol 0.02 \
     --measure-seconds 60 \
     --container-image /bgfs/stephenlee/wat29/nemo_2504.sif
 

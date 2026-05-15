@@ -1,0 +1,3 @@
+- Compare different strategies: fixed strategies like: always pick highest throughput, pick lowest energy, etc...
+- Another baseline: Energy delay product? 1/tau * steady_state_energy
+-  

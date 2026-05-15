@@ -20,7 +20,17 @@ How it works (per config in the menu):
 
 3. VERIFY           sanity-check parallel shapes per rank.
 
-3.5 WARMUP SAVE     (first config only) discard one save_checkpoint call
+4. WARMUP iters     run train_step until step times stabilize (rolling
+                    window of last `--warmup-window` iters within
+                    `--warmup-tol` of their mean), bounded by
+                    `--warmup-min-seconds` and `--warmup-max-seconds`.
+                    Discard timings and power. GPU clocks/thermals
+                    reach equilibrium and the first train_step's CUDA
+                    kernel JIT / cuDNN autotune is absorbed. Without
+                    this, fast configs measure low because GPUs haven't
+                    ramped to steady state.
+
+4.5 WARMUP SAVE     (first config only) discard one save_checkpoint call
                     so Megatron's dist-checkpoint subsystem, PyTorch's
                     distributed I/O paths, CUDA pinned-memory buffers,
                     and the filesystem inodes are all warm before the
@@ -29,15 +39,14 @@ How it works (per config in the menu):
                     one-time setup costs (sharding plan construction,
                     lazy imports, pinned-buffer allocation, fs metadata)
                     that poison the average_reshard_wall_time_s metric.
+                    Must run AFTER warmup train_steps because Adam
+                    lazily allocates exp_avg/exp_avg_sq on the first
+                    optimizer.step(); saving before that fails with
+                    KeyError('exp_avg').
 
-4. WARMUP iters     run train_step for ~60s, discard timings and power.
-                    GPU clocks/thermals reach equilibrium and the first
-                    train_step's CUDA kernel JIT / cuDNN autotune is
-                    absorbed. Without this, fast configs measure low
-                    because GPUs haven't ramped to steady state.
-
-5. MEASURE iters    run train_step for ~60s, record step time and power.
-                    This is what lands in the calibration JSON.
+5. MEASURE iters    run train_step for `--measure-seconds`, record step
+                    time and power. This is what lands in the
+                    calibration JSON.
 
 6. SAVE checkpoint  write model state to disk so the NEXT config can
                     load it on its BUILD step (skipped after the last
@@ -46,10 +55,10 @@ How it works (per config in the menu):
 
 7. FREE memory      release model from GPU before next reshard.
 
-Steps 3.5 and 4 both exist for the same reason: discarding one-time
+Steps 4.5 and 4 both exist for the same reason: discarding one-time
 setup costs (checkpoint subsystem init, GPU thermal ramp-up, kernel
 compile) so measurements reflect steady-state behavior. In production
-this is a non-issue, real training scripts checkpoint periodically for
+this is a non-issue — real training scripts checkpoint periodically for
 fault tolerance, so the dist-ckpt subsystem is already warm by the time
 the scheduler triggers its first switch. The profiler is the only place
 that needs to manually warm the subsystem.
@@ -89,7 +98,9 @@ def read_first_tp_pp_from_menu(profile_menu_path: str):
 def build_profile_cmd(cfg, profile_menu_path, output_path,
                       n_gpus, megatron_dir, work_dir,
                       first_tp, first_pp,
-                      warmup_seconds, measure_seconds,
+                      warmup_min_seconds, warmup_max_seconds,
+                      warmup_window, warmup_tol,
+                      measure_seconds,
                       micro_batch, global_batch, seq_length,
                       extra_args=None):
     """Build torchrun + profile_strategies.py command. Mirrors
@@ -104,11 +115,14 @@ def build_profile_cmd(cfg, profile_menu_path, output_path,
     cmd = [
         "torchrun", f"--nproc_per_node={n_gpus}",
         script,
-        "--profile-menu",     str(profile_menu_path),
-        "--warmup-seconds",     str(warmup_seconds),
-        "--measure-seconds",    str(measure_seconds),
-        "--output",           str(output_path),
-        "--elastic-work-dir", str(work_dir),
+        "--profile-menu",         str(profile_menu_path),
+        "--warmup-min-seconds",   str(warmup_min_seconds),
+        "--warmup-max-seconds",   str(warmup_max_seconds),
+        "--warmup-window",        str(warmup_window),
+        "--warmup-tol",           str(warmup_tol),
+        "--measure-seconds",      str(measure_seconds),
+        "--output",               str(output_path),
+        "--elastic-work-dir",     str(work_dir),
         "--tensor-model-parallel-size",   str(first_tp),
         "--pipeline-model-parallel-size", str(first_pp),
         "--num-layers",          str(cfg["num_layers"]),
@@ -158,7 +172,17 @@ def main():
     ap.add_argument('--output', required=True,
                     help='Where to write calibration JSON')
     ap.add_argument('--num-gpus', type=int, required=True)
-    ap.add_argument('--warmup-seconds',  type=float, default=60.0)
+    # Convergence-based warmup parameters
+    ap.add_argument('--warmup-min-seconds', type=float, default=10.0,
+                    help='Minimum warmup before convergence check fires.')
+    ap.add_argument('--warmup-max-seconds', type=float, default=60.0,
+                    help='Hard cap on warmup duration if step times '
+                         'never stabilize.')
+    ap.add_argument('--warmup-window', type=int, default=10,
+                    help='Rolling-window size for step-time convergence.')
+    ap.add_argument('--warmup-tol', type=float, default=0.02,
+                    help='Fractional tolerance for step-time convergence '
+                         '(default 0.02 = ±2%%).')
     ap.add_argument('--measure-seconds', type=float, default=60.0)
     ap.add_argument('--micro-batch-size',  type=int, default=2)
     ap.add_argument('--global-batch-size', type=int, default=16)
@@ -177,6 +201,9 @@ def main():
         sys.exit(f"[fatal] --profile-menu not found: {args.profile_menu}")
     if not os.path.isfile(args.container_image):
         sys.exit(f"[fatal] --container-image not found: {args.container_image}")
+    if args.warmup_min_seconds > args.warmup_max_seconds:
+        sys.exit(f"[fatal] --warmup-min-seconds ({args.warmup_min_seconds}) "
+                 f"> --warmup-max-seconds ({args.warmup_max_seconds})")
 
     os.makedirs(args.work_dir, exist_ok=True)
     os.makedirs(os.path.dirname(args.output) or '.', exist_ok=True)
@@ -198,7 +225,10 @@ def main():
         megatron_dir=args.megatron_dir,
         work_dir=args.work_dir,
         first_tp=first_tp, first_pp=first_pp,
-        warmup_seconds=args.warmup_seconds,
+        warmup_min_seconds=args.warmup_min_seconds,
+        warmup_max_seconds=args.warmup_max_seconds,
+        warmup_window=args.warmup_window,
+        warmup_tol=args.warmup_tol,
         measure_seconds=args.measure_seconds,
         micro_batch=args.micro_batch_size,
         global_batch=args.global_batch_size,
@@ -209,13 +239,16 @@ def main():
     print('=' * 70)
     print('  PROFILER LAUNCHER')
     print('=' * 70)
-    print(f"  Model:         {args.model}")
-    print(f"  GPUs:          {args.num_gpus}")
-    print(f"  Profile menu:  {args.profile_menu}")
-    print(f"  Initial TP/PP: {first_tp}/{first_pp}")
-    print(f"  Warmup secs:  {args.warmup_seconds}")
-    print(f"  Measure secs: {args.measure_seconds}")
-    print(f"  Output:        {args.output}")
+    print(f"  Model:           {args.model}")
+    print(f"  GPUs:            {args.num_gpus}")
+    print(f"  Profile menu:    {args.profile_menu}")
+    print(f"  Initial TP/PP:   {first_tp}/{first_pp}")
+    print(f"  Warmup min/max:  {args.warmup_min_seconds}s / "
+          f"{args.warmup_max_seconds}s")
+    print(f"  Convergence:     window={args.warmup_window} iters, "
+          f"tol=±{args.warmup_tol*100:.1f}%")
+    print(f"  Measure secs:    {args.measure_seconds}")
+    print(f"  Output:          {args.output}")
     print('=' * 70)
     print('Full cmd:', ' '.join(full_cmd), flush=True)
     print('=' * 70, flush=True)
