@@ -1,4 +1,4 @@
 Config,Type,ExpTime(s),RealTime(h),AvgPower(W),Energy(Wh),C_Fixed@400(g),C_Varying(g),Tput(tok/s)
-DP=4,Static,619.0,10.32,809.9,139.25,55.7,76.03,19851.4
-"TP=2,DP=2",Static,1280.5,21.34,640.7,227.9,91.16,167.62,9596.3
-Hybrid Schedule,Schedule,778.0,12.97,705.9,152.55,61.02,99.97,15794.3
+DP=4,Static,619.0,10.32,809.9,139.25,55.7,13.44,19851.4
+"TP=2,DP=2",Static,1280.5,21.34,640.7,227.9,91.16,20.58,9596.3
+Hybrid Schedule,Schedule,778.0,12.97,705.9,152.55,61.02,15.06,15794.3

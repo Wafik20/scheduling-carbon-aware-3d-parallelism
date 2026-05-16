@@ -1,0 +1,1962 @@
+============================================================
+  Naive Elastic 3D Parallelism Training
+============================================================
+  Model:             gpt2_medium
+  Carbon forecast:   /afs/cs.pitt.edu/usr0/wat29/scheduling-carbon-aware-3d-parallelism/data/carbon_week.csv
+  Scheduler config:  /afs/cs.pitt.edu/usr0/wat29/scheduling-carbon-aware-3d-parallelism/runs/static_b_local_20260509_215822/naive_scheduler_config.json
+  Train iters:       5000
+     low strategy:   TP=1 PP=2 DP=2
+     med strategy:   TP=1 PP=2 DP=2
+    high strategy:   TP=1 PP=2 DP=2
+  Initial bucket:    high
+  Initial (TP, PP):  (1, 2)
+  Decide every:      50 steps
+  Min dwell:         200 steps
+  Bucket seconds:    150.0s (unused by naive)
+  Work dir:          /afs/cs.pitt.edu/usr0/wat29/scheduling-carbon-aware-3d-parallelism/runs/static_b_local_20260509_215822
+  Checkpoint dir:    /tmp/wat29_elastic_ckpt_scratch
+  Power log:         /afs/cs.pitt.edu/usr0/wat29/scheduling-carbon-aware-3d-parallelism/runs/static_b_local_20260509_215822/naive_elastic_gpt2_medium_power.csv
+============================================================
+
+[PowerMonitor] Monitoring 4 GPU(s) every 0.5s
+W0509 23:01:33.712000 1357107 torch/distributed/run.py:803] 
+W0509 23:01:33.712000 1357107 torch/distributed/run.py:803] *****************************************
+W0509 23:01:33.712000 1357107 torch/distributed/run.py:803] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0509 23:01:33.712000 1357107 torch/distributed/run.py:803] *****************************************
+/opt/venv/lib/python3.12/site-packages/transformers/utils/hub.py:110: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+/opt/venv/lib/python3.12/site-packages/transformers/utils/hub.py:110: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+/opt/venv/lib/python3.12/site-packages/transformers/utils/hub.py:110: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+/opt/venv/lib/python3.12/site-packages/transformers/utils/hub.py:110: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+⚙️  Running in WANDB offline mode
+⚙️  Running in WANDB offline mode
+⚙️  Running in WANDB offline mode
+⚙️  Running in WANDB offline mode
+Multiple distributions found for package modelopt. Picked distribution: nvidia-modelopt
+Multiple distributions found for package modelopt. Picked distribution: nvidia-modelopt
+Multiple distributions found for package modelopt. Picked distribution: nvidia-modelopt
+/opt/TensorRT-Model-Optimizer/modelopt/torch/utils/import_utils.py:32: UserWarning: Failed to import diffusers plugin due to: ImportError('peft>=0.17.0 is required for a normal functioning of this module, but found peft==0.13.2.'). You may ignore this warning if you do not need this plugin.
+  warnings.warn(
+/opt/TensorRT-Model-Optimizer/modelopt/torch/utils/import_utils.py:32: UserWarning: Failed to import diffusers plugin due to: ImportError('peft>=0.17.0 is required for a normal functioning of this module, but found peft==0.13.2.'). You may ignore this warning if you do not need this plugin.
+  warnings.warn(
+/opt/TensorRT-Model-Optimizer/modelopt/torch/utils/import_utils.py:32: UserWarning: Failed to import diffusers plugin due to: ImportError('peft>=0.17.0 is required for a normal functioning of this module, but found peft==0.13.2.'). You may ignore this warning if you do not need this plugin.
+  warnings.warn(
+Multiple distributions found for package modelopt. Picked distribution: nvidia-modelopt
+/opt/TensorRT-Model-Optimizer/modelopt/torch/utils/import_utils.py:32: UserWarning: Failed to import diffusers plugin due to: ImportError('peft>=0.17.0 is required for a normal functioning of this module, but found peft==0.13.2.'). You may ignore this warning if you do not need this plugin.
+  warnings.warn(
+/opt/TensorRT-Model-Optimizer/modelopt/torch/utils/import_utils.py:32: UserWarning: Failed to import peft plugin due to: ImportError("cannot import name 'ParamWrapper' from 'peft.tuners.lora.layer' (/opt/venv/lib/python3.12/site-packages/peft/tuners/lora/layer.py)"). You may ignore this warning if you do not need this plugin.
+  warnings.warn(
+/opt/TensorRT-Model-Optimizer/modelopt/torch/utils/import_utils.py:32: UserWarning: Failed to import peft plugin due to: ImportError("cannot import name 'ParamWrapper' from 'peft.tuners.lora.layer' (/opt/venv/lib/python3.12/site-packages/peft/tuners/lora/layer.py)"). You may ignore this warning if you do not need this plugin.
+  warnings.warn(
+/opt/TensorRT-Model-Optimizer/modelopt/torch/utils/import_utils.py:32: UserWarning: Failed to import peft plugin due to: ImportError("cannot import name 'ParamWrapper' from 'peft.tuners.lora.layer' (/opt/venv/lib/python3.12/site-packages/peft/tuners/lora/layer.py)"). You may ignore this warning if you do not need this plugin.
+  warnings.warn(
+/opt/TensorRT-Model-Optimizer/modelopt/torch/utils/import_utils.py:32: UserWarning: Failed to import peft plugin due to: ImportError("cannot import name 'ParamWrapper' from 'peft.tuners.lora.layer' (/opt/venv/lib/python3.12/site-packages/peft/tuners/lora/layer.py)"). You may ignore this warning if you do not need this plugin.
+  warnings.warn(
+INFO 05-09 23:01:59 [__init__.py:241] Automatically detected platform cuda.
+INFO 05-09 23:01:59 [__init__.py:241] Automatically detected platform cuda.
+INFO 05-09 23:01:59 [__init__.py:241] Automatically detected platform cuda.
+INFO 05-09 23:01:59 [__init__.py:241] Automatically detected platform cuda.
+/opt/TensorRT-Model-Optimizer/modelopt/torch/__init__.py:36: UserWarning: transformers version 4.57.6 is incompatible with nvidia-modelopt and may cause issues. Please install recommended version with `pip install nvidia-modelopt[hf]` if working with HF models.
+  _warnings.warn(
+/opt/TensorRT-Model-Optimizer/modelopt/torch/__init__.py:36: UserWarning: transformers version 4.57.6 is incompatible with nvidia-modelopt and may cause issues. Please install recommended version with `pip install nvidia-modelopt[hf]` if working with HF models.
+  _warnings.warn(
+/opt/TensorRT-Model-Optimizer/modelopt/torch/__init__.py:36: UserWarning: transformers version 4.57.6 is incompatible with nvidia-modelopt and may cause issues. Please install recommended version with `pip install nvidia-modelopt[hf]` if working with HF models.
+  _warnings.warn(
+/opt/TensorRT-Model-Optimizer/modelopt/torch/__init__.py:36: UserWarning: transformers version 4.57.6 is incompatible with nvidia-modelopt and may cause issues. Please install recommended version with `pip install nvidia-modelopt[hf]` if working with HF models.
+  _warnings.warn(
+LANG_RL Log directory: None
+LANG_RL Log directory: None
+LANG_RL Log directory: None
+LANG_RL Log directory: None
+WARNING: one_logger package is required to enable e2e metrics tracking. please go to https://confluence.nvidia.com/display/MLWFO/Package+Repositories for details to install it
+using world size: 4, data-parallel size: 2, context-parallel size: 1, hierarchical context-parallel sizes: None, tensor-model-parallel size: 1, pipeline-model-parallel size: 2
+WARNING: Setting args.overlap_p2p_comm and args.align_param_gather to False since non-interleaved schedule does not support overlapping p2p communication and aligned param AG
+Number of virtual stages per pipeline stage: None
+accumulate and all-reduce gradients in fp32 for bfloat16 data type.
+using torch.bfloat16 for parameters ...
+------------------------ arguments ------------------------
+  account_for_embedding_in_pipeline_split ......... False
+  account_for_loss_in_pipeline_split .............. False
+  accumulate_allreduce_grads_in_fp32 .............. True
+  activation_func_clamp_value ..................... None
+  adam_beta1 ...................................... 0.9
+  adam_beta2 ...................................... 0.999
+  adam_eps ........................................ 1e-08
+  add_bias_linear ................................. True
+  add_position_embedding .......................... True
+  add_qkv_bias .................................... True
+  adlr_autoresume ................................. False
+  adlr_autoresume_interval ........................ 1000
+  align_grad_reduce ............................... True
+  align_param_gather .............................. False
+  allow_ambiguous_pad_tokens ...................... False
+  app_tag_run_name ................................ None
+  app_tag_run_version ............................. 0.0.0
+  apply_query_key_layer_scaling ................... False
+  apply_residual_connection_post_layernorm ........ False
+  apply_rope_fusion ............................... False
+  apply_wd_to_qk_layernorm ........................ False
+  async_save ...................................... False
+  async_tensor_model_parallel_allreduce ........... True
+  attention_backend ............................... AttnBackend.auto
+  attention_dropout ............................... 0.1
+  attention_output_gate ........................... False
+  attention_softmax_in_fp32 ....................... False
+  auto_detect_ckpt_format ......................... True
+  barrier_with_L1_time ............................ True
+  batch_invariant_mode ............................ False
+  bert_binary_head ................................ True
+  bert_embedder_type .............................. megatron
+  bert_load ....................................... None
+  bf16 ............................................ True
+  bias_dropout_fusion ............................. True
+  bias_gelu_fusion ................................ True
+  bias_swiglu_fusion .............................. True
+  biencoder_projection_dim ........................ 0
+  biencoder_shared_query_context_model ............ False
+  block_data_path ................................. None
+  cache_mla_latents ............................... False
+  calc_ft_timeouts ................................ False
+  calculate_per_token_loss ........................ False
+  check_for_large_grads ........................... False
+  check_for_nan_in_loss_and_grad .................. True
+  check_for_spiky_loss ............................ False
+  check_weight_hash_across_dp_replicas_interval ... None
+  ckpt_assume_constant_structure .................. False
+  ckpt_convert_format ............................. None
+  ckpt_convert_save ............................... None
+  ckpt_convert_update_legacy_dist_opt_format ...... False
+  ckpt_format ..................................... torch_dist
+  ckpt_fully_parallel_load ........................ False
+  ckpt_fully_parallel_save ........................ True
+  ckpt_fully_parallel_save_deprecated ............. False
+  ckpt_step ....................................... None
+  classes_fraction ................................ 1.0
+  clip_grad ....................................... 1.0
+  clone_scatter_output_in_embedding ............... True
+  config_logger_dir ............................... 
+  consumed_train_samples .......................... 0
+  consumed_valid_samples .......................... 0
+  context_parallel_size ........................... 1
+  cp_comm_type .................................... ['p2p']
+  cpu_offloading_num_layers ....................... 0
+  create_all_gather_group ......................... False
+  create_attention_mask_in_dataloader ............. True
+  cross_entropy_fusion_impl ....................... native
+  cross_entropy_loss_fusion ....................... False
+  cuda_graph_impl ................................. none
+  cuda_graph_scope ................................ []
+  cuda_graph_warmup_steps ......................... 3
+  data_args_path .................................. None
+  data_cache_path ................................. None
+  data_parallel_random_init ....................... False
+  data_parallel_sharding_strategy ................. no_shard
+  data_parallel_size .............................. 2
+  data_path ....................................... None
+  data_per_class_fraction ......................... 1.0
+  data_sharding ................................... True
+  dataloader_defer_npy_index_mmap ................. False
+  dataloader_fast_cache_load ...................... False
+  dataloader_type ................................. single
+  ddp_average_in_collective ....................... False
+  ddp_bucket_size ................................. None
+  ddp_num_buckets ................................. None
+  ddp_pad_buckets_for_high_nccl_busbw ............. False
+  ddp_reduce_scatter_with_fp32_accumulation ....... False
+  decode_only_cuda_graphs ......................... False
+  decoder_first_pipeline_num_layers ............... None
+  decoder_last_pipeline_num_layers ................ None
+  decoder_num_layers .............................. None
+  decoder_seq_length .............................. None
+  decoupled_lr .................................... None
+  decoupled_min_lr ................................ None
+  decrease_batch_size_if_needed ................... False
+  defer_embedding_wgrad_compute ................... False
+  delay_wgrad_compute ............................. False
+  deprecated_use_mcore_models ..................... False
+  deterministic_mode .............................. False
+  dino_bottleneck_size ............................ 256
+  dino_freeze_last_layer .......................... 1
+  dino_head_hidden_size ........................... 2048
+  dino_local_crops_number ......................... 10
+  dino_local_img_size ............................. 96
+  dino_norm_last_layer ............................ False
+  dino_teacher_temp ............................... 0.07
+  dino_warmup_teacher_temp ........................ 0.04
+  dino_warmup_teacher_temp_epochs ................. 30
+  disable_bf16_reduced_precision_matmul ........... False
+  disable_chunked_prefill ......................... True
+  disable_jit_fuser ............................... False
+  disable_straggler_on_startup .................... False
+  disable_symmetric_registration .................. False
+  dist_ckpt_format_deprecated ..................... None
+  dist_ckpt_optim_fully_reshardable ............... True
+  dist_ckpt_save_pre_mcore_014 .................... False
+  dist_ckpt_strictness ............................ assume_ok_unexpected
+  distrib_optim_fully_reshardable_mem_efficient ... False
+  distribute_saved_activations .................... False
+  distributed_backend ............................. nccl
+  distributed_timeout_minutes ..................... 10
+  distributed_timeout_seconds_after_init .......... None
+  dsa_indexer_head_dim ............................ None
+  dsa_indexer_loss_coeff .......................... None
+  dsa_indexer_n_heads ............................. None
+  dsa_indexer_topk ................................ None
+  dsa_indexer_use_sparse_loss ..................... False
+  dump_param_to_param_group_map ................... None
+  embedding_init_method_std ....................... None
+  embedding_path .................................. None
+  empty_unused_memory_level ....................... 0
+  enable_cuda_graph ............................... False
+  enable_experimental ............................. False
+  enable_ft_package ............................... False
+  enable_full_sharding_in_hsdp .................... False
+  enable_gloo_process_groups ...................... True
+  enable_msc ...................................... True
+  enable_one_logger ............................... True
+  encoder_num_layers .............................. 24
+  encoder_seq_length .............................. 1024
+  end_weight_decay ................................ 0.1
+  eod_mask_loss ................................... False
+  ep_overlap_early_attn_memory_release ............ False
+  error_injection_rate ............................ 0
+  error_injection_type ............................ transient_error
+  eval_interval ................................... 1000
+  eval_iters ...................................... 0
+  evidence_data_path .............................. None
+  exit_duration_in_mins ........................... None
+  exit_interval ................................... None
+  exit_on_missing_checkpoint ...................... False
+  exit_signal ..................................... 15
+  exit_signal_handler ............................. False
+  exit_signal_handler_for_dataloader .............. False
+  exp_avg_dtype ................................... torch.float32
+  exp_avg_sq_dtype ................................ torch.float32
+  experimental_attention_variant .................. None
+  expert_model_parallel_size ...................... 1
+  expert_tensor_parallel_size ..................... 1
+  external_cuda_graph ............................. False
+  fake_process_group .............................. False
+  ffn_hidden_size ................................. 4096
+  fim_data ........................................ False
+  fim_eod_token ................................... <|endoftext|>
+  fim_fragment_rate ............................... None
+  fim_middle_token ................................ <fim_middle>
+  fim_no_prefix ................................... None
+  fim_pad_token ................................... <fim_pad>
+  fim_prefix_token ................................ <fim_prefix>
+  fim_rate ........................................ 0.5
+  fim_split_sample ................................ None
+  fim_spm_rate .................................... 0.5
+  fim_suffix_token ................................ <fim_suffix>
+  fine_grained_activation_offloading .............. False
+  finetune ........................................ False
+  first_last_layers_bf16 .......................... False
+  flash_decode .................................... False
+  fp16 ............................................ False
+  fp16_lm_cross_entropy ........................... False
+  fp32_residual_connection ........................ False
+  fp4 ............................................. None
+  fp4_param ....................................... False
+  fp4_quantizer_factory ........................... None
+  fp4_recipe ...................................... nvfp4
+  fp8 ............................................. None
+  fp8_amax_compute_algo ........................... most_recent
+  fp8_amax_history_len ............................ 1
+  fp8_interval .................................... 1
+  fp8_margin ...................................... 0
+  fp8_param_gather ................................ False
+  fp8_quantizer_factory ........................... None
+  fp8_recipe ...................................... delayed
+  fp8_wgrad ....................................... True
+  fsdp_double_buffer .............................. False
+  fsdp_manual_registration ........................ False
+  ft_num_warmup_iters ............................. 5
+  full_validation ................................. False
+  global_batch_size ............................... 16
+  glu_linear_offset ............................... 0.0
+  grad_reduce_in_bf16 ............................. False
+  gradient_accumulation_fusion .................... True
+  gradient_reduce_div_fusion ...................... True
+  group_query_attention ........................... False
+  grpo_clamp_eps_lower ............................ 0.01
+  grpo_clamp_eps_upper ............................ 0.01
+  grpo_entropy_term_weight ........................ 0.0
+  grpo_filter_groups_with_same_reward ............. False
+  grpo_group_size ................................. 2
+  grpo_iterations ................................. 2
+  grpo_kl_beta .................................... 0.001
+  grpo_prompts_per_step ........................... 32
+  head_lr_mult .................................... 1.0
+  heterogeneous_layers_config_encoded_json ........ None
+  heterogeneous_layers_config_path ................ None
+  hidden_dropout .................................. 0.1
+  hidden_size ..................................... 1024
+  hierarchical_context_parallel_sizes ............. None
+  high_priority_stream_groups ..................... []
+  hybrid_attention_ratio .......................... 0.0
+  hybrid_context_parallel ......................... False
+  hybrid_mlp_ratio ................................ 0.0
+  hybrid_override_pattern ......................... None
+  hysteresis ...................................... 2
+  ict_head_size ................................... None
+  ict_load ........................................ None
+  img_h ........................................... 224
+  img_w ........................................... 224
+  indexer_batch_size .............................. 128
+  indexer_log_interval ............................ 1000
+  inference_batch_times_seqlen_threshold .......... -1
+  inference_coordinator_port ...................... 12346
+  inference_dynamic_batching ...................... False
+  inference_dynamic_batching_block_size ........... 256
+  inference_dynamic_batching_buffer_size_gb ....... 40.0
+  inference_dynamic_batching_cuda_graph_max_tokens  16384
+  inference_dynamic_batching_cuda_graph_mixed_prefill_count  16
+  inference_dynamic_batching_max_requests ......... None
+  inference_dynamic_batching_max_tokens ........... None
+  inference_dynamic_batching_num_cuda_graphs ...... 16
+  inference_dynamic_batching_paused_buffer_size_gb  None
+  inference_dynamic_batching_track_paused_request_events  False
+  inference_dynamic_batching_unified_memory_level . 0
+  inference_fuse_tp_communication ................. False
+  inference_logging_step_interval ................. 0
+  inference_max_batch_size ........................ 8
+  inference_max_seq_length ........................ 2560
+  inference_rng_tracker ........................... False
+  inference_wandb_logging ......................... False
+  init_method_std ................................. 0.02
+  init_method_xavier_uniform ...................... False
+  init_model_with_meta_device ..................... False
+  initial_loss_scale .............................. 4294967296
+  inprocess_active_world_size ..................... 4
+  inprocess_barrier_timeout ....................... 120
+  inprocess_completion_timeout .................... 120
+  inprocess_empty_cuda_cache ...................... False
+  inprocess_granularity ........................... node
+  inprocess_hard_timeout .......................... 90
+  inprocess_heartbeat_interval .................... 30
+  inprocess_heartbeat_timeout ..................... 60
+  inprocess_last_call_wait ........................ 1
+  inprocess_max_iterations ........................ None
+  inprocess_monitor_process_interval .............. 1.0
+  inprocess_monitor_thread_interval ............... 1.0
+  inprocess_progress_watchdog_interval ............ 1.0
+  inprocess_restart ............................... False
+  inprocess_soft_timeout .......................... 60
+  inprocess_termination_grace_time ................ 1
+  is_hybrid_model ................................. False
+  iter_per_epoch .................................. 1250
+  iterations_to_skip .............................. []
+  keep_fp8_transpose_cache ........................ False
+  kitchen_attention_backend ....................... sdpa
+  kv_channels ..................................... 64
+  kv_lora_rank .................................... 32
+  langrl_env_config ............................... None
+  langrl_external_server .......................... False
+  langrl_inference_server_conversation_template ... None
+  langrl_inference_server_type .................... inplace_megatron
+  layernorm_epsilon ............................... 1e-05
+  layernorm_zero_centered_gamma ................... False
+  lazy_mpu_init ................................... None
+  legacy_tokenizer ................................ False
+  linear_attention_freq ........................... None
+  linear_conv_kernel_dim .......................... 4
+  linear_key_head_dim ............................. 128
+  linear_num_key_heads ............................ 16
+  linear_num_value_heads .......................... 32
+  linear_value_head_dim ........................... 128
+  load ............................................ None
+  load_main_params_from_ckpt ...................... False
+  local_rank ...................................... 0
+  log_device_memory_used .......................... False
+  log_energy ...................................... False
+  log_interval .................................... 10
+  log_loss_scale_to_tensorboard ................... True
+  log_max_attention_logit ......................... False
+  log_memory_interval ............................. None
+  log_memory_to_tensorboard ....................... False
+  log_num_zeros_in_grad ........................... False
+  log_params_norm ................................. False
+  log_progress .................................... False
+  log_straggler ................................... False
+  log_throughput .................................. False
+  log_timers_to_tensorboard ....................... False
+  log_validation_ppl_to_tensorboard ............... False
+  log_world_size_to_tensorboard ................... False
+  logging_level ................................... None
+  loss_scale ...................................... None
+  loss_scale_window ............................... 1000
+  lr .............................................. 0.00015
+  lr_decay_iters .................................. None
+  lr_decay_samples ................................ None
+  lr_decay_style .................................. cosine
+  lr_warmup_fraction .............................. 0.01
+  lr_warmup_init .................................. 0.0
+  lr_warmup_iters ................................. 0
+  lr_warmup_samples ............................... 0
+  lr_wsd_decay_iters .............................. None
+  lr_wsd_decay_samples ............................ None
+  lr_wsd_decay_style .............................. exponential
+  main_grads_dtype ................................ torch.float32
+  main_params_dtype ............................... torch.float32
+  make_vocab_size_divisible_by .................... 128
+  mamba_head_dim .................................. 64
+  mamba_num_groups ................................ 8
+  mamba_num_heads ................................. None
+  mamba_state_dim ................................. 128
+  manual_gc ....................................... False
+  manual_gc_eval .................................. True
+  manual_gc_interval .............................. 0
+  mask_factor ..................................... 1.0
+  mask_prob ....................................... 0.15
+  mask_type ....................................... random
+  masked_softmax_fusion ........................... True
+  max_position_embeddings ......................... 1024
+  max_seqlen_per_dp_cp_rank ....................... None
+  max_tokens_to_oom ............................... 12000
+  memory_snapshot_path ............................ snapshot.pickle
+  merge_file ...................................... None
+  micro_batch_size ................................ 2
+  microbatch_group_size_per_vp_stage .............. None
+  mid_level_dataset_surplus ....................... 0.005
+  min_loss_scale .................................. 1.0
+  min_lr .......................................... 1e-05
+  min_offloaded_tensor_size ....................... 1048576
+  mlp_chunks_for_prefill .......................... 1
+  mmap_bin_files .................................. True
+  mock_data ....................................... True
+  moe_apply_probs_on_input ........................ False
+  moe_aux_loss_coeff .............................. 0.0
+  moe_deepep_num_sms .............................. 20
+  moe_enable_deepep ............................... False
+  moe_enable_routing_replay ....................... False
+  moe_expert_capacity_factor ...................... None
+  moe_extended_tp ................................. False
+  moe_ffn_hidden_size ............................. None
+  moe_flex_dispatcher_backend ..................... deepep
+  moe_grouped_gemm ................................ False
+  moe_hybridep_num_sms ............................ 16
+  moe_input_jitter_eps ............................ None
+  moe_latent_size ................................. None
+  moe_layer_freq .................................. 1
+  moe_layer_recompute ............................. False
+  moe_pad_expert_input_to_capacity ................ False
+  moe_pad_experts_for_cuda_graph_inference ........ False
+  moe_per_layer_logging ........................... False
+  moe_permute_fusion .............................. False
+  moe_router_bias_update_rate ..................... 0.001
+  moe_router_dtype ................................ None
+  moe_router_enable_expert_bias ................... False
+  moe_router_force_load_balancing ................. False
+  moe_router_fusion ............................... False
+  moe_router_group_topk ........................... None
+  moe_router_load_balancing_type .................. aux_loss
+  moe_router_num_groups ........................... None
+  moe_router_padding_for_fp8 ...................... False
+  moe_router_padding_for_quantization ............. False
+  moe_router_pre_softmax .......................... False
+  moe_router_score_function ....................... softmax
+  moe_router_topk ................................. 2
+  moe_router_topk_scaling_factor .................. None
+  moe_shared_expert_gate .......................... False
+  moe_shared_expert_intermediate_size ............. None
+  moe_shared_expert_overlap ....................... False
+  moe_token_dispatcher_type ....................... allgather
+  moe_token_drop_policy ........................... probs
+  moe_upcycling_granularity ....................... 1
+  moe_use_legacy_grouped_gemm ..................... False
+  moe_use_upcycling ............................... False
+  moe_z_loss_coeff ................................ None
+  mrope_section ................................... None
+  mscale .......................................... 1.0
+  mscale_all_dim .................................. 0.0
+  mtp_loss_scaling_factor ......................... 0.1
+  mtp_num_layers .................................. None
+  mtp_standalone .................................. False
+  multi_latent_attention .......................... False
+  multiple_validation_sets ........................ False
+  muon_extra_scale_factor ......................... 1.0
+  muon_fp32_matmul_prec ........................... medium
+  muon_momentum ................................... 0.9
+  muon_num_ns_steps ............................... 5
+  muon_scale_mode ................................. spectral
+  muon_split_qkv .................................. True
+  muon_tp_mode .................................... blockwise
+  muon_use_nesterov ............................... False
+  nccl_all_reduce_for_prefill ..................... False
+  nccl_communicator_config_path ................... None
+  nccl_ub ......................................... False
+  no_load_optim ................................... None
+  no_load_rng ..................................... None
+  no_persist_layer_norm ........................... False
+  no_rope_freq .................................... None
+  no_save_optim ................................... None
+  no_save_rng ..................................... None
+  no_weight_decay_cond_type ....................... None
+  non_persistent_ckpt_type ........................ None
+  non_persistent_global_ckpt_dir .................. None
+  non_persistent_local_ckpt_algo .................. fully_parallel
+  non_persistent_local_ckpt_dir ................... None
+  non_persistent_save_interval .................... None
+  normalization ................................... LayerNorm
+  num_attention_heads ............................. 16
+  num_channels .................................... 3
+  num_classes ..................................... 1000
+  num_dataset_builder_threads ..................... 1
+  num_distributed_optimizer_instances ............. 1
+  num_experts ..................................... None
+  num_layers ...................................... 24
+  num_layers_at_end_in_bf16 ....................... 1
+  num_layers_at_start_in_bf16 ..................... 1
+  num_layers_per_virtual_pipeline_stage ........... None
+  num_query_groups ................................ 1
+  num_virtual_stages_per_pipeline_rank ............ None
+  num_workers ..................................... 2
+  object_storage_cache_path ....................... None
+  offload_modules ................................. []
+  one_logger_async ................................ False
+  one_logger_project .............................. megatron-lm
+  one_logger_run_name ............................. None
+  onnx_safe ....................................... None
+  openai_gelu ..................................... False
+  optimizer ....................................... adam
+  optimizer_cpu_offload ........................... False
+  optimizer_offload_fraction ...................... 1.0
+  outer_dp_sharding_strategy ...................... no_shard
+  output_bert_embeddings .......................... False
+  overlap_cpu_optimizer_d2h_h2d ................... False
+  overlap_grad_reduce ............................. False
+  overlap_moe_expert_parallel_comm ................ False
+  overlap_p2p_comm ................................ False
+  overlap_p2p_comm_warmup_flush ................... False
+  overlap_param_gather ............................ False
+  overlap_param_gather_with_optimizer_step ........ False
+  override_opt_param_scheduler .................... True
+  padded_vocab_size ............................... None
+  params_dtype .................................... torch.bfloat16
+  patch_dim ....................................... 16
+  per_dataset_sequences_path ...................... None
+  per_split_data_args_path ........................ None
+  perform_initialization .......................... True
+  perform_rl_step ................................. False
+  phase_transition_iterations ..................... None
+  pin_cpu_grads ................................... True
+  pin_cpu_params .................................. True
+  pipeline_model_parallel_comm_backend ............ None
+  pipeline_model_parallel_layout .................. None
+  pipeline_model_parallel_size .................... 2
+  position_embedding_type ......................... learned_absolute
+  pretrained_checkpoint ........................... None
+  profile ......................................... False
+  profile_ranks ................................... [0]
+  profile_step_end ................................ 12
+  profile_step_start .............................. 10
+  q_lora_rank ..................................... None
+  qk_clip ......................................... False
+  qk_clip_alpha ................................... 0.5
+  qk_clip_threshold ............................... 100
+  qk_head_dim ..................................... 128
+  qk_l2_norm ...................................... False
+  qk_layernorm .................................... False
+  qk_pos_emb_head_dim ............................. 64
+  query_in_block_prob ............................. 0.1
+  quick_geglu ..................................... False
+  rampup_batch_size ............................... None
+  rank ............................................ 0
+  recompute_granularity ........................... None
+  recompute_method ................................ None
+  recompute_modules ............................... None
+  recompute_num_layers ............................ None
+  record_memory_history ........................... False
+  refit_method .................................... gloo
+  relative_attention_max_distance ................. 128
+  relative_attention_num_buckets .................. 32
+  replication ..................................... False
+  replication_factor .............................. 2
+  replication_jump ................................ None
+  rerun_mode ...................................... validate_results
+  reset_attention_mask ............................ False
+  reset_position_ids .............................. False
+  result_rejected_tracker_filename ................ None
+  retriever_report_topk_accuracies ................ []
+  retriever_score_scaling ......................... False
+  reuse_grad_buf_for_mxfp8_param_ag ............... False
+  rl_default_temperature .......................... 1.0
+  rl_default_top_k ................................ -1
+  rl_default_top_p ................................ 0
+  rl_importance_sampling_truncation_coef .......... None
+  rl_inference_expert_model_parallel_size ......... None
+  rl_inference_expert_tensor_model_parallel_size .. None
+  rl_inference_logprobs_is_correction ............. False
+  rl_inference_model_unified_memory_level ......... 0
+  rl_inference_pipeline_model_parallel_size ....... None
+  rl_inference_tensor_model_parallel_size ......... None
+  rl_offload_inference_model_weights_when_idle .... False
+  rl_offload_kv_cache_during_training ............. False
+  rl_offload_optimizer_during_inference ........... False
+  rl_parallel_generation_tasks .................... 512
+  rl_partial_rollouts ............................. False
+  rl_prompts_per_eval ............................. 32
+  rl_remove_kv_cache_during_training .............. False
+  rl_reset_cuda_graphs ............................ False
+  rl_sequence_packing_algo ........................ fifo
+  rl_sequence_packing_max_sequences_per_bin ....... 50
+  rl_skip_bos_token ............................... False
+  rl_training_cuda_graphs ......................... False
+  rl_use_sequence_packing ......................... False
+  rl_verify_model_weights_swap .................... False
+  rope_scaling_factor ............................. 8.0
+  rope_type ....................................... None
+  rotary_base ..................................... 10000
+  rotary_interleaved .............................. False
+  rotary_percent .................................. 1.0
+  rotary_scaling_factor ........................... 1.0
+  rotary_seq_len_interpolation_factor ............. None
+  run_workload_inspector_server ................... False
+  sample_rate ..................................... 1.0
+  save ............................................ /tmp/wat29_elastic_ckpt_scratch
+  save_dgrads_interval ............................ None
+  save_interval ................................... 999999
+  save_retain_interval ............................ None
+  save_wgrads_interval ............................ None
+  scatter_gather_tensors_in_pipeline .............. True
+  seed ............................................ 1234
+  seq_length ...................................... 1024
+  sequence_parallel ............................... False
+  sft ............................................. False
+  sft_tokenizer_prompt_format ..................... nemotron-h-aligned
+  sgd_momentum .................................... 0.9
+  sharp_enabled_group ............................. None
+  short_seq_prob .................................. 0.1
+  skip_train ...................................... False
+  skipped_train_samples ........................... 0
+  softmax_type .................................... vanilla
+  spec ............................................ None
+  split ........................................... None
+  squared_relu .................................... False
+  start_weight_decay .............................. 0.1
+  straggler_ctrlr_port ............................ 65535
+  straggler_minmax_count .......................... 1
+  strict_fsdp_dtensor_load ........................ True
+  suggested_communication_unit_size ............... None
+  swiglu .......................................... False
+  swin_backbone_type .............................. tiny
+  symmetric_ar_type ............................... None
+  te_precision_config_file ........................ None
+  te_rng_tracker .................................. False
+  tensor_model_parallel_size ...................... 1
+  tensorboard_dir ................................. None
+  tensorboard_log_interval ........................ 1
+  tensorboard_queue_size .......................... 1000
+  test_data_path .................................. None
+  test_mode ....................................... False
+  tiktoken_num_special_tokens ..................... 1000
+  tiktoken_pattern ................................ None
+  tiktoken_special_tokens ......................... None
+  timing_log_level ................................ 0
+  timing_log_option ............................... minmax
+  titles_data_path ................................ None
+  tokenizer_hf_include_special_tokens ............. False
+  tokenizer_hf_use_fast ........................... False
+  tokenizer_metadata .............................. None
+  tokenizer_model ................................. None
+  tokenizer_sentencepiece_legacy .................. False
+  tokenizer_special_tokens ........................ None
+  tokenizer_type .................................. NullTokenizer
+  torch_fsdp2_reshard_after_forward ............... True
+  tp_comm_bootstrap_backend ....................... nccl
+  tp_comm_bulk_dgrad .............................. True
+  tp_comm_bulk_wgrad .............................. True
+  tp_comm_overlap ................................. False
+  tp_comm_overlap_ag .............................. True
+  tp_comm_overlap_cfg ............................. None
+  tp_comm_overlap_rs .............................. True
+  tp_comm_overlap_rs_dgrad ........................ False
+  tp_comm_split_ag ................................ True
+  tp_comm_split_rs ................................ True
+  train_data_path ................................. None
+  train_iters ..................................... 5000
+  train_samples ................................... None
+  train_sync_interval ............................. None
+  transformer_impl ................................ transformer_engine
+  transformer_pipeline_model_parallel_size ........ 2
+  trust_remote_code ............................... False
+  untie_embeddings_and_output_weights ............. False
+  use_checkpoint_args ............................. False
+  use_checkpoint_opt_param_scheduler .............. False
+  use_cpu_initialization .......................... None
+  use_dist_ckpt ................................... True
+  use_dist_ckpt_deprecated ........................ False
+  use_distributed_optimizer ....................... True
+  use_flash_attn .................................. False
+  use_fused_weighted_squared_relu ................. False
+  use_kitchen_attention ........................... False
+  use_legacy_models ............................... False
+  use_legacy_static_engine ........................ False
+  use_mamba_mem_eff_path .......................... True
+  use_megatron_fsdp ............................... False
+  use_mp_args_from_checkpoint_args ................ False
+  use_one_sent_docs ............................... False
+  use_persistent_ckpt_worker ...................... False
+  use_precision_aware_optimizer ................... False
+  use_pytorch_profiler ............................ False
+  use_ring_exchange_p2p ........................... False
+  use_rope_scaling ................................ False
+  use_rotary_position_embeddings .................. False
+  use_sharp ....................................... False
+  use_te_activation_func .......................... False
+  use_tokenizer_model_from_checkpoint_args ........ True
+  use_torch_fsdp2 ................................. False
+  use_torch_optimizer_for_cpu_offload ............. False
+  use_tp_pp_dp_mapping ............................ False
+  v_head_dim ...................................... 128
+  valid_data_path ................................. None
+  variable_seq_lengths ............................ False
+  virtual_pipeline_model_parallel_size ............ None
+  vision_backbone_type ............................ vit
+  vision_pretraining .............................. False
+  vision_pretraining_type ......................... classify
+  vocab_extra_ids ................................. 0
+  vocab_file ...................................... None
+  vocab_size ...................................... 50257
+  wandb_entity .................................... None
+  wandb_exp_name .................................. None
+  wandb_project ................................... None
+  wandb_save_dir .................................. None
+  weight_decay .................................... 0.1
+  weight_decay_incr_style ......................... constant
+  wgrad_deferral_limit ............................ 0
+  window_attn_skip_freq ........................... None
+  window_size ..................................... None
+  world_size ...................................... 4
+  yaml_cfg ........................................ None
+-------------------- end of arguments ---------------------
+INFO:megatron.core.num_microbatches_calculator:setting number of microbatches to constant 4
+> building NullTokenizer tokenizer ...
+WARNING:megatron.core.datasets.megatron_tokenizer:You're using the legacy tokenizer system, which is deprecated and will be removed in a future release. Please migrate to the new tokenizer system (`megatron.core.tokenizers.MegatronTokenizer`).
+ > padded vocab (size: 50258) with 46 dummy tokens (new size: 50304)
+WARNING:megatron.core.rerun_state_machine:RerunStateMachine initialized in mode RerunMode.VALIDATE_RESULTS
+> initializing torch distributed ...
+[Gloo] Rank 1 is connected to 1 peer ranks. Expected number of connected peer ranks is : 1[Gloo] Rank 
+0 is connected to 1 peer ranks. Expected number of connected peer ranks is : 1
+[Gloo] Rank [Gloo] Rank 1 is connected to 01 is connected to  peer ranks. Expected number of connected peer ranks is : 11 peer ranks. 
+Expected number of connected peer ranks is : 1
+[Gloo] Rank 1 is connected to 1 peer ranks. Expected number of connected peer ranks is : 1
+[Gloo] Rank 0 is connected to 1 peer ranks. Expected number of connected peer ranks is : 1
+/usr/local/lib/python3.12/dist-packages/torch/distributed/distributed_c10d.py:4814: UserWarning: No device id is provided via `init_process_group` or `barrier `. Using the current device set by the user. 
+  warnings.warn(  # warn only once
+/usr/local/lib/python3.12/dist-packages/torch/distributed/distributed_c10d.py:4814: UserWarning: No device id is provided via `init_process_group` or `barrier `. Using the current device set by the user. 
+  warnings.warn(  # warn only once
+[rank2]:[W509 23:02:01.216250606 ProcessGroupNCCL.cpp:5084] [PG ID 0 PG GUID 0 Rank 2]  using GPU 2 as device used by this process is currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect. You can specify device_id in init_process_group() to force use of a particular device.
+[rank3]:[W509 23:02:01.216251713 ProcessGroupNCCL.cpp:5084] [PG ID 0 PG GUID 0 Rank 3]  using GPU 3 as device used by this process is currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect. You can specify device_id in init_process_group() to force use of a particular device.
+[Gloo] Rank 0 is connected to 1 peer ranks. Expected number of connected peer ranks is : 1
+[Gloo] Rank 1 is connected to 1 peer ranks. Expected number of connected peer ranks is : 1
+[Gloo] Rank 1[Gloo] Rank  is connected to 10 peer ranks.  is connected to Expected number of connected peer ranks is : 11 peer ranks. Expected number of connected peer ranks is : 1
+
+[Gloo] Rank [Gloo] Rank 10 is connected to  is connected to 11 peer ranks.  peer ranks. Expected number of connected peer ranks is : Expected number of connected peer ranks is : 11
+
+> initialized tensor model parallel with size 1
+> initialized pipeline model parallel with size 2
+> setting random seeds to 1234 ...
+> compiling dataset index builder ...
+/usr/local/lib/python3.12/dist-packages/torch/distributed/distributed_c10d.py:4814: UserWarning: No device id is provided via `init_process_group` or `barrier `. Using the current device set by the user. 
+  warnings.warn(  # warn only once
+[rank1]:[W509 23:02:01.305387574 ProcessGroupNCCL.cpp:5084] [PG ID 0 PG GUID 0 Rank 1]  using GPU 1 as device used by this process is currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect. You can specify device_id in init_process_group() to force use of a particular device.
+make: Entering directory '/opt/megatron-lm/megatron/core/datasets'
+make: Nothing to be done for 'default'.
+make: Leaving directory '/opt/megatron-lm/megatron/core/datasets'
+>>> done with dataset index builder. Compilation time: 0.076 seconds
+> compiling and loading fused kernels ...
+/usr/local/lib/python3.12/dist-packages/torch/distributed/distributed_c10d.py:4814: UserWarning: No device id is provided via `init_process_group` or `barrier `. Using the current device set by the user. 
+  warnings.warn(  # warn only once
+[rank0]:[W509 23:02:01.405728352 ProcessGroupNCCL.cpp:5084] [PG ID 0 PG GUID 0 Rank 0]  using GPU 0 as device used by this process is currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect. You can specify device_id in init_process_group() to force use of a particular device.
+>>> done with compiling and loading fused kernels. Compilation time: 0.489 seconds
+
+======================================================================
+  ONLINE ELASTIC 3D PARALLELISM (naive bucket carbon-aware)
+======================================================================
+  GPUs:              4
+  Total steps:       5000
+  Decide every:      50 steps
+  Switch cost:       0.0s @ 0.0W
+  Min dwell:         200 steps (CI smoothing window)
+  Mapping:           progress-based (step / 5000 → CSV row)
+  Megatron init:     1.3s (one-time cost)
+  Checkpoint dir:    /tmp/wat29_elastic_ckpt_scratch
+  Scheduler config:  /afs/cs.pitt.edu/usr0/wat29/scheduling-carbon-aware-3d-parallelism/runs/static_b_local_20260509_215822/naive_scheduler_config.json
+  Carbon forecast:   /afs/cs.pitt.edu/usr0/wat29/scheduling-carbon-aware-3d-parallelism/data/carbon_week.csv (720 buckets)
+  Strategy menu:     low / medium / high
+    low: TP=1 PP=2  P≈0.0W  τ≈1.0s  ← initial
+    medium: TP=1 PP=2  P≈0.0W  τ≈1.0s  
+    high: TP=1 PP=2  P≈0.0W  τ≈1.0s  
+======================================================================
+
+
+======================================================================
+  PHASE 1: starting at step 0  (DP=2, TP=1, PP=2)
+======================================================================
+  [build] Constructing model and optimizer...
+building GPT model ...
+ > number of parameters on (tensor, pipeline) model parallel rank (0, 0): 203714560
+ > number of parameters on (tensor, pipeline) model parallel rank (0, 1): 202668032
+INFO:megatron.core.distributed.param_and_grad_buffer:Number of buckets for gradient all-reduce / reduce-scatter: 2
+Params for bucket 1 (51511296 elements, 51511296 padded size):
+	module.output_layer.weight
+Params for bucket 2 (151156736 elements, 151156736 padded size):
+	module.decoder.layers.10.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.7.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.4.mlp.linear_fc1.weight
+	module.decoder.layers.1.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.0.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.11.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.8.self_attention.linear_qkv.bias
+	module.decoder.layers.5.mlp.linear_fc1.bias
+	module.decoder.layers.3.mlp.linear_fc2.bias
+	module.decoder.final_layernorm.bias
+	module.decoder.layers.9.self_attention.linear_qkv.weight
+	module.decoder.layers.6.mlp.linear_fc1.weight
+	module.decoder.layers.4.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.1.mlp.linear_fc2.bias
+	module.decoder.layers.11.mlp.linear_fc2.bias
+	module.decoder.layers.8.self_attention.linear_proj.weight
+	module.decoder.layers.5.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.2.mlp.linear_fc1.bias
+	module.decoder.layers.1.mlp.linear_fc1.bias
+	module.decoder.layers.9.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.6.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.3.mlp.linear_fc1.weight
+	module.decoder.layers.0.self_attention.linear_qkv.weight
+	module.decoder.layers.10.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.7.self_attention.linear_qkv.bias
+	module.decoder.layers.5.self_attention.linear_proj.weight
+	module.decoder.layers.2.mlp.linear_fc2.bias
+	module.decoder.layers.1.mlp.linear_fc2.weight
+	module.decoder.layers.11.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.8.self_attention.linear_qkv.weight
+	module.decoder.layers.5.mlp.linear_fc1.weight
+	module.decoder.layers.3.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.10.mlp.linear_fc2.bias
+	module.decoder.layers.7.self_attention.linear_proj.weight
+	module.decoder.layers.4.self_attention.linear_qkv.bias
+	module.decoder.layers.3.mlp.linear_fc2.weight
+	module.decoder.layers.8.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.5.self_attention.linear_qkv.bias
+	module.decoder.layers.2.mlp.linear_fc1.weight
+	module.decoder.layers.1.mlp.linear_fc1.weight
+	module.decoder.layers.0.self_attention.linear_proj.weight
+	module.decoder.layers.11.mlp.linear_fc1.bias
+	module.decoder.layers.9.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.6.self_attention.linear_qkv.bias
+	module.decoder.layers.4.self_attention.linear_proj.weight
+	module.decoder.layers.2.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.10.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.7.self_attention.linear_qkv.weight
+	module.decoder.layers.5.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.2.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.1.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.0.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.11.mlp.linear_fc2.weight
+	module.decoder.layers.9.mlp.linear_fc2.bias
+	module.decoder.layers.6.self_attention.linear_proj.weight
+	module.decoder.layers.3.self_attention.linear_qkv.bias
+	module.decoder.final_layernorm.weight
+	module.decoder.layers.7.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.4.self_attention.linear_qkv.weight
+	module.decoder.layers.10.mlp.linear_fc1.bias
+	module.decoder.layers.8.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.5.self_attention.linear_qkv.weight
+	module.decoder.layers.3.self_attention.linear_proj.bias
+	module.decoder.layers.2.self_attention.linear_proj.weight
+	module.decoder.layers.11.mlp.linear_fc1.weight
+	module.decoder.layers.9.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.6.self_attention.linear_qkv.weight
+	module.decoder.layers.4.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.0.mlp.linear_fc2.bias
+	module.decoder.layers.5.mlp.linear_fc2.bias
+	module.decoder.layers.10.mlp.linear_fc2.weight
+	module.decoder.layers.8.mlp.linear_fc2.bias
+	module.decoder.layers.6.mlp.linear_fc2.bias
+	module.decoder.layers.1.self_attention.linear_qkv.bias
+	module.decoder.layers.0.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.11.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.6.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.3.self_attention.linear_qkv.weight
+	module.decoder.layers.9.mlp.linear_fc1.bias
+	module.decoder.layers.7.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.1.self_attention.linear_proj.weight
+	module.decoder.layers.6.self_attention.linear_proj.bias
+	module.decoder.layers.10.mlp.linear_fc1.weight
+	module.decoder.layers.8.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.3.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.3.self_attention.linear_proj.weight
+	module.decoder.layers.1.self_attention.linear_proj.bias
+	module.decoder.layers.9.mlp.linear_fc2.weight
+	module.decoder.layers.7.mlp.linear_fc2.bias
+	module.decoder.layers.4.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.0.mlp.linear_fc1.bias
+	module.decoder.layers.11.self_attention.linear_proj.bias
+	module.decoder.layers.10.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.5.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.2.self_attention.linear_qkv.bias
+	module.decoder.layers.1.self_attention.linear_qkv.weight
+	module.decoder.layers.11.self_attention.linear_qkv.bias
+	module.decoder.layers.8.mlp.linear_fc1.bias
+	module.decoder.layers.6.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.4.mlp.linear_fc2.bias
+	module.decoder.layers.9.mlp.linear_fc1.weight
+	module.decoder.layers.8.self_attention.linear_proj.bias
+	module.decoder.layers.7.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.1.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.11.self_attention.linear_proj.weight
+	module.decoder.layers.9.self_attention.linear_proj.bias
+	module.decoder.layers.8.mlp.linear_fc2.weight
+	module.decoder.layers.3.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.2.self_attention.linear_qkv.weight
+	module.decoder.layers.0.self_attention.linear_proj.bias
+	module.decoder.layers.10.self_attention.linear_proj.bias
+	module.decoder.layers.9.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.4.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.0.mlp.linear_fc1.weight
+	module.decoder.layers.10.self_attention.linear_qkv.bias
+	module.decoder.layers.7.mlp.linear_fc1.bias
+	module.decoder.layers.5.mlp.linear_fc2.weight
+	module.decoder.layers.2.mlp.linear_fc2.weight
+	module.decoder.layers.2.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.2.self_attention.linear_proj.bias
+	module.decoder.layers.11.self_attention.linear_qkv.weight
+	module.decoder.layers.8.mlp.linear_fc1.weight
+	module.decoder.layers.6.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.5.self_attention.linear_proj.bias
+	module.decoder.layers.10.self_attention.linear_proj.weight
+	module.decoder.layers.7.mlp.linear_fc2.weight
+	module.decoder.layers.4.mlp.linear_fc1.bias
+	module.decoder.layers.1.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.11.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.8.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.5.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.3.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.2.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.9.self_attention.linear_qkv.bias
+	module.decoder.layers.6.mlp.linear_fc1.bias
+	module.decoder.layers.4.mlp.linear_fc2.weight
+	module.decoder.layers.0.mlp.linear_fc2.weight
+	module.decoder.layers.10.self_attention.linear_qkv.weight
+	module.decoder.layers.7.mlp.linear_fc1.weight
+	module.decoder.layers.7.self_attention.linear_proj.bias
+	module.decoder.layers.4.self_attention.linear_proj.bias
+	module.decoder.layers.0.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.9.self_attention.linear_proj.weight
+	module.decoder.layers.6.mlp.linear_fc2.weight
+	module.decoder.layers.3.mlp.linear_fc1.bias
+	module.decoder.layers.0.self_attention.linear_qkv.bias
+INFO:megatron.core.distributed.distributed_data_parallel:Setting up DistributedDataParallel with config DistributedDataParallelConfig(grad_reduce_in_fp32=True, overlap_grad_reduce=False, overlap_param_gather=False, align_param_gather=False, use_distributed_optimizer=True, num_distributed_optimizer_instances=1, check_for_nan_in_grad=True, check_for_large_grads=False, bucket_size=None, pad_buckets_for_high_nccl_busbw=False, reduce_scatter_with_fp32_accumulation=False, average_in_collective=False, fp8_param_gather=False, reuse_grad_buf_for_mxfp8_param_ag=False, use_megatron_fsdp=False, use_custom_fsdp=False, data_parallel_sharding_strategy='no_shard', gradient_reduce_div_fusion=True, suggested_communication_unit_size=None, preserve_fp32_weights=True, keep_fp8_transpose_cache=False, nccl_ub=False, fsdp_double_buffer=False, outer_dp_sharding_strategy='no_shard', disable_symmetric_registration=False, fsdp_manual_registration=False, delay_wgrad_compute=False)
+INFO:megatron.core.distributed.param_and_grad_buffer:Number of buckets for gradient all-reduce / reduce-scatter: 2
+Params for bucket 1 (152203264 elements, 152203264 padded size):
+	module.decoder.layers.7.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.4.self_attention.linear_qkv.weight
+	module.decoder.layers.10.mlp.linear_fc1.bias
+	module.decoder.layers.8.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.5.self_attention.linear_qkv.weight
+	module.decoder.layers.3.self_attention.linear_proj.bias
+	module.decoder.layers.11.mlp.linear_fc1.weight
+	module.decoder.layers.9.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.6.self_attention.linear_qkv.weight
+	module.decoder.layers.4.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.0.mlp.linear_fc2.bias
+	module.decoder.layers.10.mlp.linear_fc2.weight
+	module.decoder.layers.8.mlp.linear_fc2.bias
+	module.decoder.layers.6.mlp.linear_fc2.bias
+	module.decoder.layers.2.self_attention.linear_qkv.bias
+	module.decoder.layers.1.self_attention.linear_qkv.bias
+	module.decoder.layers.11.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.6.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.3.self_attention.linear_qkv.weight
+	module.decoder.layers.9.mlp.linear_fc1.bias
+	module.decoder.layers.7.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.2.self_attention.linear_proj.bias
+	module.decoder.layers.1.self_attention.linear_proj.weight
+	module.decoder.layers.10.mlp.linear_fc1.weight
+	module.decoder.layers.8.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.6.self_attention.linear_proj.bias
+	module.decoder.layers.3.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.9.mlp.linear_fc2.weight
+	module.decoder.layers.7.mlp.linear_fc2.bias
+	module.decoder.layers.4.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.0.mlp.linear_fc1.bias
+	module.decoder.layers.11.self_attention.linear_proj.bias
+	module.decoder.layers.10.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.5.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.2.self_attention.linear_qkv.weight
+	module.decoder.layers.1.self_attention.linear_qkv.weight
+	module.decoder.layers.0.self_attention.linear_proj.weight
+	module.decoder.layers.11.self_attention.linear_qkv.bias
+	module.decoder.layers.8.mlp.linear_fc1.bias
+	module.decoder.layers.6.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.4.mlp.linear_fc2.bias
+	module.decoder.layers.9.mlp.linear_fc1.weight
+	module.decoder.layers.8.self_attention.linear_proj.bias
+	module.decoder.layers.7.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.2.mlp.linear_fc2.bias
+	module.decoder.layers.1.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.0.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.11.self_attention.linear_proj.weight
+	module.decoder.layers.9.self_attention.linear_proj.bias
+	module.decoder.layers.8.mlp.linear_fc2.weight
+	module.decoder.layers.3.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.10.self_attention.linear_proj.bias
+	module.decoder.layers.9.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.4.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.0.mlp.linear_fc1.weight
+	module.decoder.layers.5.mlp.linear_fc2.weight
+	module.decoder.layers.10.self_attention.linear_qkv.bias
+	module.decoder.layers.7.mlp.linear_fc1.bias
+	module.decoder.layers.5.mlp.linear_fc2.bias
+	module.decoder.layers.11.self_attention.linear_qkv.weight
+	module.decoder.layers.8.mlp.linear_fc1.weight
+	module.decoder.layers.6.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.5.self_attention.linear_proj.bias
+	module.decoder.layers.0.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.10.self_attention.linear_proj.weight
+	module.decoder.layers.7.mlp.linear_fc2.weight
+	module.decoder.layers.4.mlp.linear_fc1.bias
+	module.decoder.layers.2.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.1.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.0.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.11.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.8.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.5.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.3.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.1.mlp.linear_fc2.weight
+	module.decoder.layers.9.self_attention.linear_qkv.bias
+	module.decoder.layers.6.mlp.linear_fc1.bias
+	module.decoder.layers.4.mlp.linear_fc2.weight
+	module.decoder.layers.0.mlp.linear_fc2.weight
+	module.decoder.layers.10.self_attention.linear_qkv.weight
+	module.decoder.layers.7.mlp.linear_fc1.weight
+	module.decoder.layers.7.self_attention.linear_proj.bias
+	module.decoder.layers.4.self_attention.linear_proj.bias
+	module.decoder.layers.1.mlp.linear_fc1.bias
+	module.decoder.layers.1.self_attention.linear_proj.bias
+	module.embedding.position_embeddings.weight
+	module.decoder.layers.9.self_attention.linear_proj.weight
+	module.decoder.layers.6.mlp.linear_fc2.weight
+	module.decoder.layers.3.mlp.linear_fc1.bias
+	module.decoder.layers.0.self_attention.linear_qkv.bias
+	module.decoder.layers.10.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.7.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.4.mlp.linear_fc1.weight
+	module.decoder.layers.2.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.1.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.5.mlp.linear_fc1.bias
+	module.decoder.layers.11.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.8.self_attention.linear_qkv.bias
+	module.decoder.layers.3.mlp.linear_fc2.bias
+	module.decoder.layers.9.self_attention.linear_qkv.weight
+	module.decoder.layers.6.mlp.linear_fc1.weight
+	module.decoder.layers.4.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.11.mlp.linear_fc2.bias
+	module.decoder.layers.8.self_attention.linear_proj.weight
+	module.decoder.layers.5.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.2.mlp.linear_fc1.bias
+	module.decoder.layers.1.mlp.linear_fc1.weight
+	module.decoder.layers.0.self_attention.linear_proj.bias
+	module.decoder.layers.9.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.6.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.3.mlp.linear_fc1.weight
+	module.decoder.layers.0.self_attention.linear_qkv.weight
+	module.decoder.layers.10.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.7.self_attention.linear_qkv.bias
+	module.decoder.layers.5.self_attention.linear_proj.weight
+	module.decoder.layers.3.mlp.linear_fc2.weight
+	module.decoder.layers.2.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.2.self_attention.linear_proj.weight
+	module.decoder.layers.5.mlp.linear_fc1.weight
+	module.decoder.layers.11.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.8.self_attention.linear_qkv.weight
+	module.decoder.layers.3.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.10.mlp.linear_fc2.bias
+	module.decoder.layers.7.self_attention.linear_proj.weight
+	module.decoder.layers.4.self_attention.linear_qkv.bias
+	module.decoder.layers.2.mlp.linear_fc2.weight
+	module.decoder.layers.8.mlp.linear_fc1.layer_norm_weight
+	module.decoder.layers.5.self_attention.linear_qkv.bias
+	module.decoder.layers.2.mlp.linear_fc1.weight
+	module.decoder.layers.1.mlp.linear_fc2.bias
+	module.decoder.layers.11.mlp.linear_fc1.bias
+	module.decoder.layers.9.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.6.self_attention.linear_qkv.bias
+	module.decoder.layers.4.self_attention.linear_proj.weight
+	module.decoder.layers.3.self_attention.linear_proj.weight
+	module.decoder.layers.10.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.7.self_attention.linear_qkv.weight
+	module.decoder.layers.5.self_attention.linear_qkv.layer_norm_weight
+	module.decoder.layers.2.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.1.self_attention.linear_qkv.layer_norm_bias
+	module.decoder.layers.0.mlp.linear_fc1.layer_norm_bias
+	module.decoder.layers.11.mlp.linear_fc2.weight
+	module.decoder.layers.9.mlp.linear_fc2.bias
+	module.decoder.layers.6.self_attention.linear_proj.weight
+	module.decoder.layers.3.self_attention.linear_qkv.bias
+Params for bucket 2 (51511296 elements, 51511296 padded size):
+	module.embedding.word_embeddings.weight
+INFO:megatron.core.optimizer:Setting up optimizer with config AdamOptimizerConfig(lr=0.00015, min_lr=1e-05, decoupled_lr=None, decoupled_min_lr=None, weight_decay=0.1, apply_wd_to_qk_layernorm=False, fp8_recipe='delayed', fp16=False, bf16=True, reuse_grad_buf_for_mxfp8_param_ag=False, params_dtype=torch.bfloat16, use_precision_aware_optimizer=False, store_param_remainders=True, main_grads_dtype=torch.float32, main_params_dtype=torch.float32, exp_avg_dtype=torch.float32, exp_avg_sq_dtype=torch.float32, optimizer='adam', loss_scale=None, initial_loss_scale=4294967296, min_loss_scale=1.0, loss_scale_window=1000, hysteresis=2, adam_beta1=0.9, adam_beta2=0.999, adam_eps=1e-08, decoupled_weight_decay=True, sgd_momentum=0.9, muon_momentum=0.9, muon_split_qkv=True, muon_use_nesterov=False, muon_scale_mode='spectral', muon_fp32_matmul_prec='medium', muon_num_ns_steps=5, muon_tp_mode='blockwise', muon_extra_scale_factor=1.0, use_distributed_optimizer=True, overlap_param_gather=False, overlap_param_gather_with_optimizer_step=False, optimizer_cpu_offload=False, optimizer_offload_fraction=1.0, use_torch_optimizer_for_cpu_offload=False, overlap_cpu_optimizer_d2h_h2d=False, pin_cpu_grads=True, pin_cpu_params=True, clip_grad=1.0, log_num_zeros_in_grad=False, barrier_with_L1_time=True, timers=<megatron.core.timers.Timers object at 0x766ceb846660>, config_logger_dir='')
+INFO:megatron.core.optimizer_param_scheduler:> learning rate decay style: cosine
+  [build] Model + optimizer + checkpoint: 1.02s
+  [build] Resuming from iteration: 0
+  [build] GPU memory allocated: 1.63GB
+  [verify] Parallel sizes  TP: 1✓(want 1)  PP: 2✓(want 2)  DP: 2✓(want 2)  |  num_microbatches = 4
+  [verify] Per-rank layer & param counts:
+  [verify]   rank 0:  12 decoder layers, ~203M params
+  [verify]   rank 1:  12 decoder layers, ~203M params
+  [verify]   rank 2:  12 decoder layers, ~202M params
+  [verify]   rank 3:  12 decoder layers, ~202M params
+
+  [train] Starting inner loop (decide every 50 steps)...
+    iter     10/5000 | loss: 11.0254 | grad_norm: 1.5595 |  1958ms/it
+    iter     20/5000 | loss: 11.0048 | grad_norm: 0.4280 |   297ms/it
+    iter     30/5000 | loss: 10.9765 | grad_norm: 0.2340 |   291ms/it
+    iter     40/5000 | loss: 10.9471 | grad_norm: 0.1526 |   292ms/it
+    iter     50/5000 | loss: 10.9267 | grad_norm: 0.1257 |   297ms/it
+    [observe] 50 steps  meas: P=551W τ=0.627s  |  EMA: P 0→165W τ 1.000→0.888s  |  CI≈237
+    [scheduler] step 50/5000 (1.0%), CI≈237 gCO2/kWh → high bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter     60/5000 | loss: 10.9128 | grad_norm: 0.1125 |   289ms/it
+    iter     70/5000 | loss: 10.9074 | grad_norm: 0.1026 |   289ms/it
+    iter     80/5000 | loss: 10.9083 | grad_norm: 0.0932 |   289ms/it
+    iter     90/5000 | loss: 10.8976 | grad_norm: 0.0916 |   297ms/it
+    iter    100/5000 | loss: 10.8989 | grad_norm: 0.0884 |   292ms/it
+    [observe] 50 steps  meas: P=788W τ=0.291s  |  EMA: P 165→352W τ 0.888→0.709s  |  CI≈107
+    [scheduler] step 100/5000 (2.0%), CI≈107 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    110/5000 | loss: 10.8912 | grad_norm: 0.0833 |   290ms/it
+    iter    120/5000 | loss: 10.8905 | grad_norm: 0.0802 |   290ms/it
+    iter    130/5000 | loss: 10.8839 | grad_norm: 0.0769 |   289ms/it
+    iter    140/5000 | loss: 10.8841 | grad_norm: 0.0718 |   300ms/it
+    iter    150/5000 | loss: 10.8806 | grad_norm: 0.0714 |   288ms/it
+    [observe] 50 steps  meas: P=790W τ=0.291s  |  EMA: P 352→484W τ 0.709→0.584s  |  CI≈77
+    [scheduler] step 150/5000 (3.0%), CI≈77 gCO2/kWh → high bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    160/5000 | loss: 10.8815 | grad_norm: 0.0701 |   292ms/it
+    iter    170/5000 | loss: 10.8770 | grad_norm: 0.0657 |   290ms/it
+    iter    180/5000 | loss: 10.8766 | grad_norm: 0.0641 |   290ms/it
+    iter    190/5000 | loss: 10.8768 | grad_norm: 0.0631 |   286ms/it
+    iter    200/5000 | loss: 10.8742 | grad_norm: 0.0595 |   287ms/it
+    [observe] 50 steps  meas: P=802W τ=0.289s  |  EMA: P 484→579W τ 0.584→0.495s  |  CI≈187
+    [scheduler] step 200/5000 (4.0%), CI≈187 gCO2/kWh → high bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    210/5000 | loss: 10.8711 | grad_norm: 0.0615 |   288ms/it
+    iter    220/5000 | loss: 10.8702 | grad_norm: 0.0564 |   286ms/it
+    iter    230/5000 | loss: 10.8680 | grad_norm: 0.0587 |   303ms/it
+    iter    240/5000 | loss: 10.8663 | grad_norm: 0.0574 |   288ms/it
+    iter    250/5000 | loss: 10.8695 | grad_norm: 0.0584 |   285ms/it
+    [observe] 50 steps  meas: P=798W τ=0.290s  |  EMA: P 579→645W τ 0.495→0.434s  |  CI≈171
+    [scheduler] step 250/5000 (5.0%), CI≈171 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    260/5000 | loss: 10.8680 | grad_norm: 0.0558 |   287ms/it
+    iter    270/5000 | loss: 10.8674 | grad_norm: 0.0544 |   292ms/it
+    iter    280/5000 | loss: 10.8640 | grad_norm: 0.0539 |   289ms/it
+    iter    290/5000 | loss: 10.8662 | grad_norm: 0.0509 |   288ms/it
+    iter    300/5000 | loss: 10.8647 | grad_norm: 0.0497 |   290ms/it
+    [observe] 50 steps  meas: P=808W τ=0.289s  |  EMA: P 645→694W τ 0.434→0.390s  |  CI≈68
+    [scheduler] step 300/5000 (6.0%), CI≈68 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    310/5000 | loss: 10.8632 | grad_norm: 0.0485 |   289ms/it
+    iter    320/5000 | loss: 10.8612 | grad_norm: 0.0500 |   288ms/it
+    iter    330/5000 | loss: 10.8618 | grad_norm: 0.0481 |   289ms/it
+    iter    340/5000 | loss: 10.8611 | grad_norm: 0.0475 |   289ms/it
+    iter    350/5000 | loss: 10.8621 | grad_norm: 0.0477 |   290ms/it
+    [observe] 50 steps  meas: P=813W τ=0.289s  |  EMA: P 694→730W τ 0.390→0.360s  |  CI≈148
+    [scheduler] step 350/5000 (7.0%), CI≈148 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    360/5000 | loss: 10.8590 | grad_norm: 0.0471 |   289ms/it
+    iter    370/5000 | loss: 10.8590 | grad_norm: 0.0470 |   287ms/it
+    iter    380/5000 | loss: 10.8583 | grad_norm: 0.0441 |   288ms/it
+    iter    390/5000 | loss: 10.8599 | grad_norm: 0.0449 |   291ms/it
+    iter    400/5000 | loss: 10.8565 | grad_norm: 0.0460 |   290ms/it
+    [observe] 50 steps  meas: P=812W τ=0.289s  |  EMA: P 730→754W τ 0.360→0.339s  |  CI≈159
+    [scheduler] step 400/5000 (8.0%), CI≈159 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    410/5000 | loss: 10.8591 | grad_norm: 0.0431 |   287ms/it
+    iter    420/5000 | loss: 10.8562 | grad_norm: 0.0422 |   289ms/it
+    iter    430/5000 | loss: 10.8563 | grad_norm: 0.0437 |   287ms/it
+    iter    440/5000 | loss: 10.8562 | grad_norm: 0.0430 |   289ms/it
+    iter    450/5000 | loss: 10.8551 | grad_norm: 0.0430 |   291ms/it
+    [observe] 50 steps  meas: P=809W τ=0.288s  |  EMA: P 754→771W τ 0.339→0.324s  |  CI≈65
+    [scheduler] step 450/5000 (9.0%), CI≈65 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    460/5000 | loss: 10.8539 | grad_norm: 0.0411 |   288ms/it
+    iter    470/5000 | loss: 10.8558 | grad_norm: 0.0403 |   289ms/it
+    iter    480/5000 | loss: 10.8535 | grad_norm: 0.0395 |   289ms/it
+    iter    490/5000 | loss: 10.8530 | grad_norm: 0.0415 |   288ms/it
+    iter    500/5000 | loss: 10.8533 | grad_norm: 0.0389 |   289ms/it
+    [observe] 50 steps  meas: P=809W τ=0.289s  |  EMA: P 771→782W τ 0.324→0.313s  |  CI≈95
+    [scheduler] step 500/5000 (10.0%), CI≈95 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    510/5000 | loss: 10.8526 | grad_norm: 0.0397 |   294ms/it
+    iter    520/5000 | loss: 10.8537 | grad_norm: 0.0393 |   289ms/it
+    iter    530/5000 | loss: 10.8528 | grad_norm: 0.0378 |   298ms/it
+    iter    540/5000 | loss: 10.8526 | grad_norm: 0.0381 |   289ms/it
+    iter    550/5000 | loss: 10.8508 | grad_norm: 0.0366 |   288ms/it
+    [observe] 50 steps  meas: P=809W τ=0.292s  |  EMA: P 782→790W τ 0.313→0.307s  |  CI≈143
+    [scheduler] step 550/5000 (11.0%), CI≈143 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    560/5000 | loss: 10.8536 | grad_norm: 0.0379 |   345ms/it
+    iter    570/5000 | loss: 10.8495 | grad_norm: 0.0361 |   290ms/it
+    iter    580/5000 | loss: 10.8525 | grad_norm: 0.0367 |   288ms/it
+    iter    590/5000 | loss: 10.8522 | grad_norm: 0.0365 |   289ms/it
+    iter    600/5000 | loss: 10.8491 | grad_norm: 0.0350 |   291ms/it
+    [observe] 50 steps  meas: P=796W τ=0.301s  |  EMA: P 790→792W τ 0.307→0.305s  |  CI≈61
+    [scheduler] step 600/5000 (12.0%), CI≈61 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    610/5000 | loss: 10.8497 | grad_norm: 0.0358 |   293ms/it
+    iter    620/5000 | loss: 10.8489 | grad_norm: 0.0366 |   293ms/it
+    iter    630/5000 | loss: 10.8509 | grad_norm: 0.0353 |   293ms/it
+    iter    640/5000 | loss: 10.8502 | grad_norm: 0.0351 |   292ms/it
+    iter    650/5000 | loss: 10.8502 | grad_norm: 0.0340 |   291ms/it
+    [observe] 50 steps  meas: P=806W τ=0.292s  |  EMA: P 792→796W τ 0.305→0.301s  |  CI≈49
+    [scheduler] step 650/5000 (13.0%), CI≈49 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    660/5000 | loss: 10.8489 | grad_norm: 0.0345 |   288ms/it
+    iter    670/5000 | loss: 10.8489 | grad_norm: 0.0347 |   285ms/it
+    iter    680/5000 | loss: 10.8494 | grad_norm: 0.0342 |   289ms/it
+    iter    690/5000 | loss: 10.8467 | grad_norm: 0.0341 |   289ms/it
+    iter    700/5000 | loss: 10.8476 | grad_norm: 0.0354 |   287ms/it
+    [observe] 50 steps  meas: P=817W τ=0.288s  |  EMA: P 796→802W τ 0.301→0.297s  |  CI≈118
+    [scheduler] step 700/5000 (14.0%), CI≈118 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    710/5000 | loss: 10.8476 | grad_norm: 0.0334 |   290ms/it
+    iter    720/5000 | loss: 10.8481 | grad_norm: 0.0341 |   296ms/it
+    iter    730/5000 | loss: 10.8471 | grad_norm: 0.0334 |   323ms/it
+    iter    740/5000 | loss: 10.8472 | grad_norm: 0.0322 |   294ms/it
+    iter    750/5000 | loss: 10.8482 | grad_norm: 0.0333 |   288ms/it
+    [observe] 50 steps  meas: P=802W τ=0.298s  |  EMA: P 802→802W τ 0.297→0.297s  |  CI≈117
+    [scheduler] step 750/5000 (15.0%), CI≈117 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    760/5000 | loss: 10.8468 | grad_norm: 0.0325 |   289ms/it
+    iter    770/5000 | loss: 10.8471 | grad_norm: 0.0325 |   289ms/it
+    iter    780/5000 | loss: 10.8470 | grad_norm: 0.0327 |   290ms/it
+    iter    790/5000 | loss: 10.8465 | grad_norm: 0.0328 |   288ms/it
+    iter    800/5000 | loss: 10.8455 | grad_norm: 0.0317 |   293ms/it
+    [observe] 50 steps  meas: P=816W τ=0.290s  |  EMA: P 802→806W τ 0.297→0.295s  |  CI≈56
+    [scheduler] step 800/5000 (16.0%), CI≈56 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    810/5000 | loss: 10.8460 | grad_norm: 0.0316 |   289ms/it
+    iter    820/5000 | loss: 10.8456 | grad_norm: 0.0306 |   291ms/it
+    iter    830/5000 | loss: 10.8451 | grad_norm: 0.0331 |   289ms/it
+    iter    840/5000 | loss: 10.8462 | grad_norm: 0.0309 |   287ms/it
+    iter    850/5000 | loss: 10.8457 | grad_norm: 0.0313 |   292ms/it
+    [observe] 50 steps  meas: P=812W τ=0.290s  |  EMA: P 806→808W τ 0.295→0.294s  |  CI≈128
+    [scheduler] step 850/5000 (17.0%), CI≈128 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    860/5000 | loss: 10.8458 | grad_norm: 0.0308 |   293ms/it
+    iter    870/5000 | loss: 10.8455 | grad_norm: 0.0304 |   292ms/it
+    iter    880/5000 | loss: 10.8447 | grad_norm: 0.0299 |   291ms/it
+    iter    890/5000 | loss: 10.8446 | grad_norm: 0.0301 |   291ms/it
+    iter    900/5000 | loss: 10.8441 | grad_norm: 0.0291 |   350ms/it
+    [observe] 50 steps  meas: P=788W τ=0.303s  |  EMA: P 808→802W τ 0.294→0.297s  |  CI≈165
+    [scheduler] step 900/5000 (18.0%), CI≈165 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    910/5000 | loss: 10.8448 | grad_norm: 0.0291 |   290ms/it
+    iter    920/5000 | loss: 10.8454 | grad_norm: 0.0293 |   292ms/it
+    iter    930/5000 | loss: 10.8445 | grad_norm: 0.0296 |   292ms/it
+    iter    940/5000 | loss: 10.8448 | grad_norm: 0.0296 |   290ms/it
+    iter    950/5000 | loss: 10.8440 | grad_norm: 0.0291 |   290ms/it
+    [observe] 50 steps  meas: P=806W τ=0.291s  |  EMA: P 802→803W τ 0.297→0.295s  |  CI≈65
+    [scheduler] step 950/5000 (19.0%), CI≈65 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter    960/5000 | loss: 10.8440 | grad_norm: 0.0286 |   290ms/it
+    iter    970/5000 | loss: 10.8445 | grad_norm: 0.0287 |   342ms/it
+    iter    980/5000 | loss: 10.8434 | grad_norm: 0.0294 |   290ms/it
+    iter    990/5000 | loss: 10.8444 | grad_norm: 0.0278 |   290ms/it
+    iter   1000/5000 | loss: 10.8416 | grad_norm: 0.0282 |   290ms/it
+    [observe] 50 steps  meas: P=806W τ=0.300s  |  EMA: P 803→804W τ 0.295→0.296s  |  CI≈97
+    [scheduler] step 1000/5000 (20.0%), CI≈97 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1010/5000 | loss: 10.8430 | grad_norm: 0.0279 |   290ms/it
+    iter   1020/5000 | loss: 10.8425 | grad_norm: 0.0277 |   290ms/it
+    iter   1030/5000 | loss: 10.8424 | grad_norm: 0.0278 |   290ms/it
+    iter   1040/5000 | loss: 10.8430 | grad_norm: 0.0287 |   288ms/it
+    iter   1050/5000 | loss: 10.8432 | grad_norm: 0.0284 |   287ms/it
+    [observe] 50 steps  meas: P=815W τ=0.289s  |  EMA: P 804→807W τ 0.296→0.294s  |  CI≈164
+    [scheduler] step 1050/5000 (21.0%), CI≈164 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1060/5000 | loss: 10.8426 | grad_norm: 0.0281 |   293ms/it
+    iter   1070/5000 | loss: 10.8423 | grad_norm: 0.0275 |   297ms/it
+    iter   1080/5000 | loss: 10.8423 | grad_norm: 0.0289 |   291ms/it
+    iter   1090/5000 | loss: 10.8420 | grad_norm: 0.0276 |   293ms/it
+    iter   1100/5000 | loss: 10.8421 | grad_norm: 0.0295 |   291ms/it
+    [observe] 50 steps  meas: P=805W τ=0.293s  |  EMA: P 807→807W τ 0.294→0.294s  |  CI≈83
+    [scheduler] step 1100/5000 (22.0%), CI≈83 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1110/5000 | loss: 10.8422 | grad_norm: 0.0281 |   297ms/it
+    iter   1120/5000 | loss: 10.8414 | grad_norm: 0.0268 |   289ms/it
+    iter   1130/5000 | loss: 10.8417 | grad_norm: 0.0272 |   294ms/it
+    iter   1140/5000 | loss: 10.8410 | grad_norm: 0.0267 |   290ms/it
+    iter   1150/5000 | loss: 10.8414 | grad_norm: 0.0269 |   293ms/it
+    [observe] 50 steps  meas: P=808W τ=0.293s  |  EMA: P 807→807W τ 0.294→0.293s  |  CI≈53
+    [scheduler] step 1150/5000 (23.0%), CI≈53 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1160/5000 | loss: 10.8424 | grad_norm: 0.0264 |   290ms/it
+    iter   1170/5000 | loss: 10.8405 | grad_norm: 0.0260 |   292ms/it
+    iter   1180/5000 | loss: 10.8413 | grad_norm: 0.0260 |   292ms/it
+    iter   1190/5000 | loss: 10.8411 | grad_norm: 0.0269 |   293ms/it
+    iter   1200/5000 | loss: 10.8412 | grad_norm: 0.0263 |   296ms/it
+    [observe] 50 steps  meas: P=812W τ=0.293s  |  EMA: P 807→809W τ 0.293→0.293s  |  CI≈132
+    [scheduler] step 1200/5000 (24.0%), CI≈132 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1210/5000 | loss: 10.8408 | grad_norm: 0.0276 |   293ms/it
+    iter   1220/5000 | loss: 10.8414 | grad_norm: 0.0276 |   294ms/it
+    iter   1230/5000 | loss: 10.8402 | grad_norm: 0.0261 |   292ms/it
+    iter   1240/5000 | loss: 10.8412 | grad_norm: 0.0258 |   291ms/it
+    iter   1250/5000 | loss: 10.8410 | grad_norm: 0.0257 |   293ms/it
+    [observe] 50 steps  meas: P=812W τ=0.293s  |  EMA: P 809→810W τ 0.293→0.293s  |  CI≈160
+    [scheduler] step 1250/5000 (25.0%), CI≈160 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1260/5000 | loss: 10.8408 | grad_norm: 0.0255 |   289ms/it
+    iter   1270/5000 | loss: 10.8408 | grad_norm: 0.0249 |   287ms/it
+    iter   1280/5000 | loss: 10.8404 | grad_norm: 0.0254 |   290ms/it
+    iter   1290/5000 | loss: 10.8405 | grad_norm: 0.0273 |   288ms/it
+    iter   1300/5000 | loss: 10.8406 | grad_norm: 0.0244 |   289ms/it
+    [observe] 50 steps  meas: P=813W τ=0.289s  |  EMA: P 810→811W τ 0.293→0.292s  |  CI≈54
+    [scheduler] step 1300/5000 (26.0%), CI≈54 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1310/5000 | loss: 10.8394 | grad_norm: 0.0253 |   289ms/it
+    iter   1320/5000 | loss: 10.8396 | grad_norm: 0.0255 |   289ms/it
+    iter   1330/5000 | loss: 10.8399 | grad_norm: 0.0245 |   294ms/it
+    iter   1340/5000 | loss: 10.8394 | grad_norm: 0.0255 |   294ms/it
+    iter   1350/5000 | loss: 10.8393 | grad_norm: 0.0245 |   292ms/it
+    [observe] 50 steps  meas: P=806W τ=0.292s  |  EMA: P 811→809W τ 0.292→0.292s  |  CI≈174
+    [scheduler] step 1350/5000 (27.0%), CI≈174 gCO2/kWh → high bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1360/5000 | loss: 10.8393 | grad_norm: 0.0243 |   292ms/it
+    iter   1370/5000 | loss: 10.8390 | grad_norm: 0.0256 |   292ms/it
+    iter   1380/5000 | loss: 10.8403 | grad_norm: 0.0250 |   292ms/it
+    iter   1390/5000 | loss: 10.8407 | grad_norm: 0.0245 |   294ms/it
+    iter   1400/5000 | loss: 10.8397 | grad_norm: 0.0249 |   341ms/it
+    [observe] 50 steps  meas: P=790W τ=0.302s  |  EMA: P 809→803W τ 0.292→0.295s  |  CI≈219
+    [scheduler] step 1400/5000 (28.0%), CI≈219 gCO2/kWh → high bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1410/5000 | loss: 10.8388 | grad_norm: 0.0252 |   288ms/it
+    iter   1420/5000 | loss: 10.8395 | grad_norm: 0.0249 |   290ms/it
+    iter   1430/5000 | loss: 10.8399 | grad_norm: 0.0245 |   288ms/it
+    iter   1440/5000 | loss: 10.8388 | grad_norm: 0.0239 |   293ms/it
+    iter   1450/5000 | loss: 10.8373 | grad_norm: 0.0246 |   305ms/it
+    [observe] 50 steps  meas: P=806W τ=0.293s  |  EMA: P 803→804W τ 0.295→0.294s  |  CI≈63
+    [scheduler] step 1450/5000 (29.0%), CI≈63 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1460/5000 | loss: 10.8379 | grad_norm: 0.0245 |   294ms/it
+    iter   1470/5000 | loss: 10.8384 | grad_norm: 0.0241 |   292ms/it
+    iter   1480/5000 | loss: 10.8387 | grad_norm: 0.0239 |   296ms/it
+    iter   1490/5000 | loss: 10.8392 | grad_norm: 0.0250 |   293ms/it
+    iter   1500/5000 | loss: 10.8390 | grad_norm: 0.0240 |   293ms/it
+    [observe] 50 steps  meas: P=804W τ=0.294s  |  EMA: P 804→804W τ 0.294→0.294s  |  CI≈129
+    [scheduler] step 1500/5000 (30.0%), CI≈129 gCO2/kWh → high bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1510/5000 | loss: 10.8388 | grad_norm: 0.0234 |   296ms/it
+    iter   1520/5000 | loss: 10.8377 | grad_norm: 0.0237 |   291ms/it
+    iter   1530/5000 | loss: 10.8377 | grad_norm: 0.0231 |   290ms/it
+    iter   1540/5000 | loss: 10.8374 | grad_norm: 0.0245 |   288ms/it
+    iter   1550/5000 | loss: 10.8375 | grad_norm: 0.0240 |   290ms/it
+    [observe] 50 steps  meas: P=808W τ=0.291s  |  EMA: P 804→805W τ 0.294→0.293s  |  CI≈201
+    [scheduler] step 1550/5000 (31.0%), CI≈201 gCO2/kWh → high bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1560/5000 | loss: 10.8383 | grad_norm: 0.0238 |   292ms/it
+    iter   1570/5000 | loss: 10.8389 | grad_norm: 0.0235 |   293ms/it
+    iter   1580/5000 | loss: 10.8378 | grad_norm: 0.0233 |   346ms/it
+    iter   1590/5000 | loss: 10.8371 | grad_norm: 0.0227 |   293ms/it
+    iter   1600/5000 | loss: 10.8379 | grad_norm: 0.0232 |   293ms/it
+    [observe] 50 steps  meas: P=793W τ=0.303s  |  EMA: P 805→802W τ 0.293→0.296s  |  CI≈66
+    [scheduler] step 1600/5000 (32.0%), CI≈66 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1610/5000 | loss: 10.8381 | grad_norm: 0.0231 |   289ms/it
+    iter   1620/5000 | loss: 10.8376 | grad_norm: 0.0230 |   291ms/it
+    iter   1630/5000 | loss: 10.8370 | grad_norm: 0.0236 |   290ms/it
+    iter   1640/5000 | loss: 10.8377 | grad_norm: 0.0226 |   289ms/it
+    iter   1650/5000 | loss: 10.8366 | grad_norm: 0.0232 |   290ms/it
+    [observe] 50 steps  meas: P=810W τ=0.290s  |  EMA: P 802→804W τ 0.296→0.294s  |  CI≈52
+    [scheduler] step 1650/5000 (33.0%), CI≈52 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1660/5000 | loss: 10.8382 | grad_norm: 0.0231 |   291ms/it
+    iter   1670/5000 | loss: 10.8382 | grad_norm: 0.0231 |   291ms/it
+    iter   1680/5000 | loss: 10.8363 | grad_norm: 0.0221 |   290ms/it
+    iter   1690/5000 | loss: 10.8370 | grad_norm: 0.0228 |   290ms/it
+    iter   1700/5000 | loss: 10.8372 | grad_norm: 0.0227 |   295ms/it
+    [observe] 50 steps  meas: P=804W τ=0.291s  |  EMA: P 804→804W τ 0.294→0.293s  |  CI≈158
+    [scheduler] step 1700/5000 (34.0%), CI≈158 gCO2/kWh → high bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1710/5000 | loss: 10.8372 | grad_norm: 0.0221 |   290ms/it
+    iter   1720/5000 | loss: 10.8368 | grad_norm: 0.0223 |   292ms/it
+    iter   1730/5000 | loss: 10.8368 | grad_norm: 0.0222 |   291ms/it
+    iter   1740/5000 | loss: 10.8376 | grad_norm: 0.0239 |   290ms/it
+    iter   1750/5000 | loss: 10.8361 | grad_norm: 0.0225 |   290ms/it
+    [observe] 50 steps  meas: P=806W τ=0.291s  |  EMA: P 804→805W τ 0.293→0.293s  |  CI≈169
+    [scheduler] step 1750/5000 (35.0%), CI≈169 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1760/5000 | loss: 10.8359 | grad_norm: 0.0222 |   290ms/it
+    iter   1770/5000 | loss: 10.8363 | grad_norm: 0.0224 |   290ms/it
+    iter   1780/5000 | loss: 10.8362 | grad_norm: 0.0230 |   290ms/it
+    iter   1790/5000 | loss: 10.8370 | grad_norm: 0.0226 |   292ms/it
+    iter   1800/5000 | loss: 10.8371 | grad_norm: 0.0224 |   290ms/it
+    [observe] 50 steps  meas: P=810W τ=0.290s  |  EMA: P 805→806W τ 0.293→0.292s  |  CI≈76
+    [scheduler] step 1800/5000 (36.0%), CI≈76 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1810/5000 | loss: 10.8362 | grad_norm: 0.0215 |   289ms/it
+    iter   1820/5000 | loss: 10.8365 | grad_norm: 0.0229 |   289ms/it
+    iter   1830/5000 | loss: 10.8366 | grad_norm: 0.0220 |   289ms/it
+    iter   1840/5000 | loss: 10.8361 | grad_norm: 0.0214 |   291ms/it
+    iter   1850/5000 | loss: 10.8365 | grad_norm: 0.0224 |   290ms/it
+    [observe] 50 steps  meas: P=811W τ=0.290s  |  EMA: P 806→808W τ 0.292→0.291s  |  CI≈165
+    [scheduler] step 1850/5000 (37.0%), CI≈165 gCO2/kWh → high bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1860/5000 | loss: 10.8369 | grad_norm: 0.0224 |   288ms/it
+    iter   1870/5000 | loss: 10.8364 | grad_norm: 0.0215 |   291ms/it
+    iter   1880/5000 | loss: 10.8360 | grad_norm: 0.0226 |   293ms/it
+    iter   1890/5000 | loss: 10.8361 | grad_norm: 0.0231 |   299ms/it
+    iter   1900/5000 | loss: 10.8357 | grad_norm: 0.0219 |   298ms/it
+    [observe] 50 steps  meas: P=804W τ=0.294s  |  EMA: P 808→807W τ 0.291→0.292s  |  CI≈178
+    [scheduler] step 1900/5000 (38.0%), CI≈178 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1910/5000 | loss: 10.8358 | grad_norm: 0.0216 |   292ms/it
+    iter   1920/5000 | loss: 10.8370 | grad_norm: 0.0211 |   289ms/it
+    iter   1930/5000 | loss: 10.8362 | grad_norm: 0.0210 |   288ms/it
+    iter   1940/5000 | loss: 10.8355 | grad_norm: 0.0220 |   288ms/it
+    iter   1950/5000 | loss: 10.8353 | grad_norm: 0.0216 |   290ms/it
+    [observe] 50 steps  meas: P=807W τ=0.289s  |  EMA: P 807→807W τ 0.292→0.291s  |  CI≈87
+    [scheduler] step 1950/5000 (39.0%), CI≈87 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   1960/5000 | loss: 10.8361 | grad_norm: 0.0200 |   294ms/it
+    iter   1970/5000 | loss: 10.8350 | grad_norm: 0.0222 |   291ms/it
+    iter   1980/5000 | loss: 10.8353 | grad_norm: 0.0218 |   286ms/it
+    iter   1990/5000 | loss: 10.8352 | grad_norm: 0.0212 |   285ms/it
+    iter   2000/5000 | loss: 10.8341 | grad_norm: 0.0217 |   286ms/it
+    [observe] 50 steps  meas: P=803W τ=0.288s  |  EMA: P 807→806W τ 0.291→0.290s  |  CI≈98
+    [scheduler] step 2000/5000 (40.0%), CI≈98 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2010/5000 | loss: 10.8348 | grad_norm: 0.0211 |   286ms/it
+    iter   2020/5000 | loss: 10.8350 | grad_norm: 0.0212 |   286ms/it
+    iter   2030/5000 | loss: 10.8355 | grad_norm: 0.0221 |   284ms/it
+    iter   2040/5000 | loss: 10.8353 | grad_norm: 0.0211 |   284ms/it
+    iter   2050/5000 | loss: 10.8350 | grad_norm: 0.0204 |   286ms/it
+    [observe] 50 steps  meas: P=816W τ=0.285s  |  EMA: P 806→809W τ 0.290→0.289s  |  CI≈140
+    [scheduler] step 2050/5000 (41.0%), CI≈140 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2060/5000 | loss: 10.8342 | grad_norm: 0.0205 |   291ms/it
+    iter   2070/5000 | loss: 10.8343 | grad_norm: 0.0207 |   283ms/it
+    iter   2080/5000 | loss: 10.8352 | grad_norm: 0.0205 |   287ms/it
+    iter   2090/5000 | loss: 10.8353 | grad_norm: 0.0217 |   286ms/it
+    iter   2100/5000 | loss: 10.8357 | grad_norm: 0.0209 |   285ms/it
+    [observe] 50 steps  meas: P=810W τ=0.286s  |  EMA: P 809→809W τ 0.289→0.288s  |  CI≈94
+    [scheduler] step 2100/5000 (42.0%), CI≈94 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2110/5000 | loss: 10.8351 | grad_norm: 0.0205 |   284ms/it
+    iter   2120/5000 | loss: 10.8349 | grad_norm: 0.0208 |   284ms/it
+    iter   2130/5000 | loss: 10.8342 | grad_norm: 0.0207 |   284ms/it
+    iter   2140/5000 | loss: 10.8350 | grad_norm: 0.0207 |   285ms/it
+    iter   2150/5000 | loss: 10.8342 | grad_norm: 0.0204 |   286ms/it
+    [observe] 50 steps  meas: P=809W τ=0.285s  |  EMA: P 809→809W τ 0.288→0.287s  |  CI≈74
+    [scheduler] step 2150/5000 (43.0%), CI≈74 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2160/5000 | loss: 10.8344 | grad_norm: 0.0207 |   290ms/it
+    iter   2170/5000 | loss: 10.8342 | grad_norm: 0.0203 |   289ms/it
+    iter   2180/5000 | loss: 10.8353 | grad_norm: 0.0206 |   290ms/it
+    iter   2190/5000 | loss: 10.8351 | grad_norm: 0.0218 |   283ms/it
+    iter   2200/5000 | loss: 10.8341 | grad_norm: 0.0211 |   284ms/it
+    [observe] 50 steps  meas: P=798W τ=0.287s  |  EMA: P 809→806W τ 0.287→0.287s  |  CI≈134
+    [scheduler] step 2200/5000 (44.0%), CI≈134 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2210/5000 | loss: 10.8343 | grad_norm: 0.0202 |   294ms/it
+    iter   2220/5000 | loss: 10.8340 | grad_norm: 0.0206 |   288ms/it
+    iter   2230/5000 | loss: 10.8343 | grad_norm: 0.0202 |   289ms/it
+    iter   2240/5000 | loss: 10.8342 | grad_norm: 0.0196 |   294ms/it
+    iter   2250/5000 | loss: 10.8339 | grad_norm: 0.0197 |   283ms/it
+    [observe] 50 steps  meas: P=805W τ=0.290s  |  EMA: P 806→805W τ 0.287→0.288s  |  CI≈130
+    [scheduler] step 2250/5000 (45.0%), CI≈130 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2260/5000 | loss: 10.8337 | grad_norm: 0.0203 |   285ms/it
+    iter   2270/5000 | loss: 10.8338 | grad_norm: 0.0210 |   335ms/it
+    iter   2280/5000 | loss: 10.8335 | grad_norm: 0.0205 |   289ms/it
+    iter   2290/5000 | loss: 10.8336 | grad_norm: 0.0195 |   288ms/it
+    iter   2300/5000 | loss: 10.8343 | grad_norm: 0.0200 |   290ms/it
+    [observe] 50 steps  meas: P=794W τ=0.298s  |  EMA: P 805→802W τ 0.288→0.291s  |  CI≈70
+    [scheduler] step 2300/5000 (46.0%), CI≈70 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2310/5000 | loss: 10.8337 | grad_norm: 0.0193 |   296ms/it
+    iter   2320/5000 | loss: 10.8340 | grad_norm: 0.0206 |   295ms/it
+    iter   2330/5000 | loss: 10.8338 | grad_norm: 0.0197 |   290ms/it
+    iter   2340/5000 | loss: 10.8333 | grad_norm: 0.0191 |   292ms/it
+    iter   2350/5000 | loss: 10.8333 | grad_norm: 0.0192 |   297ms/it
+    [observe] 50 steps  meas: P=804W τ=0.294s  |  EMA: P 802→803W τ 0.291→0.292s  |  CI≈125
+    [scheduler] step 2350/5000 (47.0%), CI≈125 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2360/5000 | loss: 10.8338 | grad_norm: 0.0203 |   290ms/it
+    iter   2370/5000 | loss: 10.8338 | grad_norm: 0.0194 |   291ms/it
+    iter   2380/5000 | loss: 10.8330 | grad_norm: 0.0199 |   290ms/it
+    iter   2390/5000 | loss: 10.8333 | grad_norm: 0.0200 |   288ms/it
+    iter   2400/5000 | loss: 10.8331 | grad_norm: 0.0203 |   290ms/it
+    [observe] 50 steps  meas: P=814W τ=0.290s  |  EMA: P 803→806W τ 0.292→0.291s  |  CI≈153
+    [scheduler] step 2400/5000 (48.0%), CI≈153 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2410/5000 | loss: 10.8336 | grad_norm: 0.0210 |   290ms/it
+    iter   2420/5000 | loss: 10.8337 | grad_norm: 0.0205 |   290ms/it
+    iter   2430/5000 | loss: 10.8328 | grad_norm: 0.0194 |   292ms/it
+    iter   2440/5000 | loss: 10.8327 | grad_norm: 0.0195 |   290ms/it
+    iter   2450/5000 | loss: 10.8335 | grad_norm: 0.0208 |   288ms/it
+    [observe] 50 steps  meas: P=812W τ=0.290s  |  EMA: P 806→808W τ 0.291→0.291s  |  CI≈66
+    [scheduler] step 2450/5000 (49.0%), CI≈66 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2460/5000 | loss: 10.8337 | grad_norm: 0.0187 |   291ms/it
+    iter   2470/5000 | loss: 10.8328 | grad_norm: 0.0191 |   289ms/it
+    iter   2480/5000 | loss: 10.8330 | grad_norm: 0.0201 |   339ms/it
+    iter   2490/5000 | loss: 10.8329 | grad_norm: 0.0206 |   291ms/it
+    iter   2500/5000 | loss: 10.8326 | grad_norm: 0.0197 |   293ms/it
+    [observe] 50 steps  meas: P=800W τ=0.301s  |  EMA: P 808→805W τ 0.291→0.294s  |  CI≈80
+    [scheduler] step 2500/5000 (50.0%), CI≈80 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2510/5000 | loss: 10.8335 | grad_norm: 0.0198 |   293ms/it
+    iter   2520/5000 | loss: 10.8328 | grad_norm: 0.0201 |   292ms/it
+    iter   2530/5000 | loss: 10.8330 | grad_norm: 0.0192 |   292ms/it
+    iter   2540/5000 | loss: 10.8331 | grad_norm: 0.0192 |   287ms/it
+    iter   2550/5000 | loss: 10.8328 | grad_norm: 0.0200 |   289ms/it
+    [observe] 50 steps  meas: P=812W τ=0.290s  |  EMA: P 805→807W τ 0.294→0.293s  |  CI≈122
+    [scheduler] step 2550/5000 (51.0%), CI≈122 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2560/5000 | loss: 10.8325 | grad_norm: 0.0207 |   287ms/it
+    iter   2570/5000 | loss: 10.8325 | grad_norm: 0.0193 |   291ms/it
+    iter   2580/5000 | loss: 10.8338 | grad_norm: 0.0199 |   294ms/it
+    iter   2590/5000 | loss: 10.8324 | grad_norm: 0.0192 |   291ms/it
+    iter   2600/5000 | loss: 10.8319 | grad_norm: 0.0210 |   291ms/it
+    [observe] 50 steps  meas: P=810W τ=0.291s  |  EMA: P 807→808W τ 0.293→0.292s  |  CI≈70
+    [scheduler] step 2600/5000 (52.0%), CI≈70 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2610/5000 | loss: 10.8326 | grad_norm: 0.0185 |   288ms/it
+    iter   2620/5000 | loss: 10.8321 | grad_norm: 0.0192 |   291ms/it
+    iter   2630/5000 | loss: 10.8333 | grad_norm: 0.0187 |   287ms/it
+    iter   2640/5000 | loss: 10.8323 | grad_norm: 0.0193 |   294ms/it
+    iter   2650/5000 | loss: 10.8334 | grad_norm: 0.0196 |   292ms/it
+    [observe] 50 steps  meas: P=808W τ=0.290s  |  EMA: P 808→808W τ 0.292→0.292s  |  CI≈61
+    [scheduler] step 2650/5000 (53.0%), CI≈61 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2660/5000 | loss: 10.8326 | grad_norm: 0.0197 |   292ms/it
+    iter   2670/5000 | loss: 10.8322 | grad_norm: 0.0195 |   296ms/it
+    iter   2680/5000 | loss: 10.8325 | grad_norm: 0.0195 |   292ms/it
+    iter   2690/5000 | loss: 10.8326 | grad_norm: 0.0196 |   292ms/it
+    iter   2700/5000 | loss: 10.8316 | grad_norm: 0.0194 |   289ms/it
+    [observe] 50 steps  meas: P=811W τ=0.292s  |  EMA: P 808→809W τ 0.292→0.292s  |  CI≈129
+    [scheduler] step 2700/5000 (54.0%), CI≈129 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2710/5000 | loss: 10.8317 | grad_norm: 0.0187 |   290ms/it
+    iter   2720/5000 | loss: 10.8323 | grad_norm: 0.0192 |   291ms/it
+    iter   2730/5000 | loss: 10.8325 | grad_norm: 0.0186 |   292ms/it
+    iter   2740/5000 | loss: 10.8324 | grad_norm: 0.0192 |   290ms/it
+    iter   2750/5000 | loss: 10.8328 | grad_norm: 0.0195 |   291ms/it
+    [observe] 50 steps  meas: P=814W τ=0.291s  |  EMA: P 809→810W τ 0.292→0.292s  |  CI≈125
+    [scheduler] step 2750/5000 (55.0%), CI≈125 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2760/5000 | loss: 10.8321 | grad_norm: 0.0180 |   290ms/it
+    iter   2770/5000 | loss: 10.8317 | grad_norm: 0.0193 |   288ms/it
+    iter   2780/5000 | loss: 10.8326 | grad_norm: 0.0178 |   291ms/it
+    iter   2790/5000 | loss: 10.8317 | grad_norm: 0.0197 |   289ms/it
+    iter   2800/5000 | loss: 10.8316 | grad_norm: 0.0189 |   288ms/it
+    [observe] 50 steps  meas: P=810W τ=0.289s  |  EMA: P 810→810W τ 0.292→0.291s  |  CI≈101
+    [scheduler] step 2800/5000 (56.0%), CI≈101 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2810/5000 | loss: 10.8320 | grad_norm: 0.0191 |   288ms/it
+    iter   2820/5000 | loss: 10.8322 | grad_norm: 0.0189 |   294ms/it
+    iter   2830/5000 | loss: 10.8310 | grad_norm: 0.0184 |   291ms/it
+    iter   2840/5000 | loss: 10.8314 | grad_norm: 0.0197 |   291ms/it
+    iter   2850/5000 | loss: 10.8319 | grad_norm: 0.0186 |   293ms/it
+    [observe] 50 steps  meas: P=814W τ=0.291s  |  EMA: P 810→811W τ 0.291→0.291s  |  CI≈112
+    [scheduler] step 2850/5000 (57.0%), CI≈112 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2860/5000 | loss: 10.8317 | grad_norm: 0.0191 |   294ms/it
+    iter   2870/5000 | loss: 10.8317 | grad_norm: 0.0189 |   292ms/it
+    iter   2880/5000 | loss: 10.8319 | grad_norm: 0.0182 |   297ms/it
+    iter   2890/5000 | loss: 10.8318 | grad_norm: 0.0186 |   308ms/it
+    iter   2900/5000 | loss: 10.8321 | grad_norm: 0.0186 |   289ms/it
+    [observe] 50 steps  meas: P=806W τ=0.296s  |  EMA: P 811→810W τ 0.291→0.293s  |  CI≈130
+    [scheduler] step 2900/5000 (58.0%), CI≈130 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2910/5000 | loss: 10.8314 | grad_norm: 0.0189 |   290ms/it
+    iter   2920/5000 | loss: 10.8311 | grad_norm: 0.0185 |   291ms/it
+    iter   2930/5000 | loss: 10.8315 | grad_norm: 0.0183 |   291ms/it
+    iter   2940/5000 | loss: 10.8312 | grad_norm: 0.0189 |   289ms/it
+    iter   2950/5000 | loss: 10.8319 | grad_norm: 0.0182 |   287ms/it
+    [observe] 50 steps  meas: P=811W τ=0.290s  |  EMA: P 810→810W τ 0.293→0.292s  |  CI≈84
+    [scheduler] step 2950/5000 (59.0%), CI≈84 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   2960/5000 | loss: 10.8314 | grad_norm: 0.0180 |   349ms/it
+    iter   2970/5000 | loss: 10.8312 | grad_norm: 0.0188 |   291ms/it
+    iter   2980/5000 | loss: 10.8323 | grad_norm: 0.0181 |   290ms/it
+    iter   2990/5000 | loss: 10.8318 | grad_norm: 0.0191 |   291ms/it
+    iter   3000/5000 | loss: 10.8316 | grad_norm: 0.0189 |   287ms/it
+    [observe] 50 steps  meas: P=800W τ=0.302s  |  EMA: P 810→807W τ 0.292→0.295s  |  CI≈86
+    [scheduler] step 3000/5000 (60.0%), CI≈86 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3010/5000 | loss: 10.8315 | grad_norm: 0.0176 |   290ms/it
+    iter   3020/5000 | loss: 10.8310 | grad_norm: 0.0193 |   291ms/it
+    iter   3030/5000 | loss: 10.8312 | grad_norm: 0.0186 |   288ms/it
+    iter   3040/5000 | loss: 10.8310 | grad_norm: 0.0187 |   286ms/it
+    iter   3050/5000 | loss: 10.8314 | grad_norm: 0.0188 |   286ms/it
+    [observe] 50 steps  meas: P=813W τ=0.288s  |  EMA: P 807→809W τ 0.295→0.293s  |  CI≈135
+    [scheduler] step 3050/5000 (61.0%), CI≈135 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3060/5000 | loss: 10.8309 | grad_norm: 0.0183 |   290ms/it
+    iter   3070/5000 | loss: 10.8310 | grad_norm: 0.0182 |   289ms/it
+    iter   3080/5000 | loss: 10.8312 | grad_norm: 0.0183 |   340ms/it
+    iter   3090/5000 | loss: 10.8314 | grad_norm: 0.0198 |   289ms/it
+    iter   3100/5000 | loss: 10.8305 | grad_norm: 0.0188 |   290ms/it
+    [observe] 50 steps  meas: P=794W τ=0.299s  |  EMA: P 809→804W τ 0.293→0.295s  |  CI≈73
+    [scheduler] step 3100/5000 (62.0%), CI≈73 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3110/5000 | loss: 10.8312 | grad_norm: 0.0180 |   290ms/it
+    iter   3120/5000 | loss: 10.8305 | grad_norm: 0.0179 |   289ms/it
+    iter   3130/5000 | loss: 10.8311 | grad_norm: 0.0193 |   287ms/it
+    iter   3140/5000 | loss: 10.8306 | grad_norm: 0.0190 |   290ms/it
+    iter   3150/5000 | loss: 10.8304 | grad_norm: 0.0182 |   289ms/it
+    [observe] 50 steps  meas: P=819W τ=0.289s  |  EMA: P 804→809W τ 0.295→0.293s  |  CI≈64
+    [scheduler] step 3150/5000 (63.0%), CI≈64 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3160/5000 | loss: 10.8311 | grad_norm: 0.0193 |   288ms/it
+    iter   3170/5000 | loss: 10.8316 | grad_norm: 0.0188 |   287ms/it
+    iter   3180/5000 | loss: 10.8308 | grad_norm: 0.0184 |   290ms/it
+    iter   3190/5000 | loss: 10.8310 | grad_norm: 0.0179 |   293ms/it
+    iter   3200/5000 | loss: 10.8301 | grad_norm: 0.0184 |   291ms/it
+    [observe] 50 steps  meas: P=815W τ=0.290s  |  EMA: P 809→810W τ 0.293→0.292s  |  CI≈121
+    [scheduler] step 3200/5000 (64.0%), CI≈121 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3210/5000 | loss: 10.8308 | grad_norm: 0.0184 |   289ms/it
+    iter   3220/5000 | loss: 10.8301 | grad_norm: 0.0187 |   291ms/it
+    iter   3230/5000 | loss: 10.8307 | grad_norm: 0.0182 |   287ms/it
+    iter   3240/5000 | loss: 10.8309 | grad_norm: 0.0187 |   288ms/it
+    iter   3250/5000 | loss: 10.8309 | grad_norm: 0.0182 |   292ms/it
+    [observe] 50 steps  meas: P=819W τ=0.289s  |  EMA: P 810→813W τ 0.292→0.291s  |  CI≈155
+    [scheduler] step 3250/5000 (65.0%), CI≈155 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3260/5000 | loss: 10.8305 | grad_norm: 0.0185 |   286ms/it
+    iter   3270/5000 | loss: 10.8301 | grad_norm: 0.0194 |   285ms/it
+    iter   3280/5000 | loss: 10.8306 | grad_norm: 0.0209 |   287ms/it
+    iter   3290/5000 | loss: 10.8307 | grad_norm: 0.0179 |   291ms/it
+    iter   3300/5000 | loss: 10.8306 | grad_norm: 0.0196 |   294ms/it
+    [observe] 50 steps  meas: P=815W τ=0.289s  |  EMA: P 813→814W τ 0.291→0.291s  |  CI≈60
+    [scheduler] step 3300/5000 (66.0%), CI≈60 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3310/5000 | loss: 10.8304 | grad_norm: 0.0186 |   291ms/it
+    iter   3320/5000 | loss: 10.8307 | grad_norm: 0.0193 |   288ms/it
+    iter   3330/5000 | loss: 10.8301 | grad_norm: 0.0180 |   291ms/it
+    iter   3340/5000 | loss: 10.8303 | grad_norm: 0.0178 |   295ms/it
+    iter   3350/5000 | loss: 10.8307 | grad_norm: 0.0190 |   290ms/it
+    [observe] 50 steps  meas: P=810W τ=0.291s  |  EMA: P 814→813W τ 0.291→0.291s  |  CI≈123
+    [scheduler] step 3350/5000 (67.0%), CI≈123 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3360/5000 | loss: 10.8306 | grad_norm: 0.0178 |   287ms/it
+    iter   3370/5000 | loss: 10.8309 | grad_norm: 0.0175 |   297ms/it
+    iter   3380/5000 | loss: 10.8303 | grad_norm: 0.0196 |   288ms/it
+    iter   3390/5000 | loss: 10.8307 | grad_norm: 0.0190 |   288ms/it
+    iter   3400/5000 | loss: 10.8301 | grad_norm: 0.0181 |   287ms/it
+    [observe] 50 steps  meas: P=820W τ=0.289s  |  EMA: P 813→815W τ 0.291→0.290s  |  CI≈156
+    [scheduler] step 3400/5000 (68.0%), CI≈156 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3410/5000 | loss: 10.8305 | grad_norm: 0.0174 |   289ms/it
+    iter   3420/5000 | loss: 10.8296 | grad_norm: 0.0175 |   319ms/it
+    iter   3430/5000 | loss: 10.8301 | grad_norm: 0.0193 |   285ms/it
+    iter   3440/5000 | loss: 10.8305 | grad_norm: 0.0178 |   287ms/it
+    iter   3450/5000 | loss: 10.8297 | grad_norm: 0.0188 |   284ms/it
+    [observe] 50 steps  meas: P=800W τ=0.293s  |  EMA: P 815→810W τ 0.290→0.291s  |  CI≈64
+    [scheduler] step 3450/5000 (69.0%), CI≈64 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3460/5000 | loss: 10.8298 | grad_norm: 0.0178 |   283ms/it
+    iter   3470/5000 | loss: 10.8302 | grad_norm: 0.0175 |   288ms/it
+    iter   3480/5000 | loss: 10.8295 | grad_norm: 0.0178 |   286ms/it
+    iter   3490/5000 | loss: 10.8305 | grad_norm: 0.0182 |   289ms/it
+    iter   3500/5000 | loss: 10.8301 | grad_norm: 0.0180 |   340ms/it
+    [observe] 50 steps  meas: P=805W τ=0.297s  |  EMA: P 810→809W τ 0.291→0.293s  |  CI≈61
+    [scheduler] step 3500/5000 (70.0%), CI≈61 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3510/5000 | loss: 10.8298 | grad_norm: 0.0182 |   289ms/it
+    iter   3520/5000 | loss: 10.8298 | grad_norm: 0.0171 |   291ms/it
+    iter   3530/5000 | loss: 10.8304 | grad_norm: 0.0181 |   289ms/it
+    iter   3540/5000 | loss: 10.8296 | grad_norm: 0.0181 |   289ms/it
+    iter   3550/5000 | loss: 10.8301 | grad_norm: 0.0175 |   288ms/it
+    [observe] 50 steps  meas: P=809W τ=0.289s  |  EMA: P 809→809W τ 0.293→0.292s  |  CI≈116
+    [scheduler] step 3550/5000 (71.0%), CI≈116 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3560/5000 | loss: 10.8298 | grad_norm: 0.0182 |   292ms/it
+    iter   3570/5000 | loss: 10.8295 | grad_norm: 0.0176 |   286ms/it
+    iter   3580/5000 | loss: 10.8301 | grad_norm: 0.0177 |   292ms/it
+    iter   3590/5000 | loss: 10.8298 | grad_norm: 0.0195 |   292ms/it
+    iter   3600/5000 | loss: 10.8298 | grad_norm: 0.0186 |   292ms/it
+    [observe] 50 steps  meas: P=810W τ=0.291s  |  EMA: P 809→809W τ 0.292→0.291s  |  CI≈69
+    [scheduler] step 3600/5000 (72.0%), CI≈69 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3610/5000 | loss: 10.8298 | grad_norm: 0.0180 |   293ms/it
+    iter   3620/5000 | loss: 10.8297 | grad_norm: 0.0177 |   289ms/it
+    iter   3630/5000 | loss: 10.8297 | grad_norm: 0.0181 |   289ms/it
+    iter   3640/5000 | loss: 10.8300 | grad_norm: 0.0183 |   289ms/it
+    iter   3650/5000 | loss: 10.8293 | grad_norm: 0.0178 |   292ms/it
+    [observe] 50 steps  meas: P=816W τ=0.290s  |  EMA: P 809→811W τ 0.291→0.291s  |  CI≈62
+    [scheduler] step 3650/5000 (73.0%), CI≈62 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3660/5000 | loss: 10.8295 | grad_norm: 0.0184 |   288ms/it
+    iter   3670/5000 | loss: 10.8295 | grad_norm: 0.0181 |   289ms/it
+    iter   3680/5000 | loss: 10.8297 | grad_norm: 0.0176 |   290ms/it
+    iter   3690/5000 | loss: 10.8293 | grad_norm: 0.0179 |   287ms/it
+    iter   3700/5000 | loss: 10.8296 | grad_norm: 0.0175 |   291ms/it
+    [observe] 50 steps  meas: P=825W τ=0.289s  |  EMA: P 811→815W τ 0.291→0.290s  |  CI≈152
+    [scheduler] step 3700/5000 (74.0%), CI≈152 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3710/5000 | loss: 10.8298 | grad_norm: 0.0175 |   288ms/it
+    iter   3720/5000 | loss: 10.8297 | grad_norm: 0.0176 |   289ms/it
+    iter   3730/5000 | loss: 10.8293 | grad_norm: 0.0172 |   291ms/it
+    iter   3740/5000 | loss: 10.8292 | grad_norm: 0.0180 |   290ms/it
+    iter   3750/5000 | loss: 10.8295 | grad_norm: 0.0179 |   283ms/it
+    [observe] 50 steps  meas: P=812W τ=0.288s  |  EMA: P 815→814W τ 0.290→0.290s  |  CI≈193
+    [scheduler] step 3750/5000 (75.0%), CI≈193 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3760/5000 | loss: 10.8288 | grad_norm: 0.0174 |   288ms/it
+    iter   3770/5000 | loss: 10.8294 | grad_norm: 0.0180 |   288ms/it
+    iter   3780/5000 | loss: 10.8290 | grad_norm: 0.0173 |   291ms/it
+    iter   3790/5000 | loss: 10.8293 | grad_norm: 0.0182 |   287ms/it
+    iter   3800/5000 | loss: 10.8284 | grad_norm: 0.0197 |   288ms/it
+    [observe] 50 steps  meas: P=818W τ=0.289s  |  EMA: P 814→815W τ 0.290→0.289s  |  CI≈41
+    [scheduler] step 3800/5000 (76.0%), CI≈41 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3810/5000 | loss: 10.8296 | grad_norm: 0.0173 |   287ms/it
+    iter   3820/5000 | loss: 10.8293 | grad_norm: 0.0176 |   288ms/it
+    iter   3830/5000 | loss: 10.8294 | grad_norm: 0.0181 |   288ms/it
+    iter   3840/5000 | loss: 10.8295 | grad_norm: 0.0173 |   286ms/it
+    iter   3850/5000 | loss: 10.8293 | grad_norm: 0.0182 |   287ms/it
+    [observe] 50 steps  meas: P=815W τ=0.287s  |  EMA: P 815→815W τ 0.289→0.289s  |  CI≈140
+    [scheduler] step 3850/5000 (77.0%), CI≈140 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3860/5000 | loss: 10.8292 | grad_norm: 0.0172 |   285ms/it
+    iter   3870/5000 | loss: 10.8291 | grad_norm: 0.0182 |   285ms/it
+    iter   3880/5000 | loss: 10.8289 | grad_norm: 0.0168 |   287ms/it
+    iter   3890/5000 | loss: 10.8298 | grad_norm: 0.0173 |   289ms/it
+    iter   3900/5000 | loss: 10.8292 | grad_norm: 0.0179 |   289ms/it
+    [observe] 50 steps  meas: P=815W τ=0.287s  |  EMA: P 815→815W τ 0.289→0.288s  |  CI≈151
+    [scheduler] step 3900/5000 (78.0%), CI≈151 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3910/5000 | loss: 10.8295 | grad_norm: 0.0178 |   288ms/it
+    iter   3920/5000 | loss: 10.8290 | grad_norm: 0.0172 |   288ms/it
+    iter   3930/5000 | loss: 10.8289 | grad_norm: 0.0168 |   336ms/it
+    iter   3940/5000 | loss: 10.8297 | grad_norm: 0.0186 |   289ms/it
+    iter   3950/5000 | loss: 10.8294 | grad_norm: 0.0166 |   291ms/it
+    [observe] 50 steps  meas: P=799W τ=0.299s  |  EMA: P 815→810W τ 0.288→0.291s  |  CI≈44
+    [scheduler] step 3950/5000 (79.0%), CI≈44 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   3960/5000 | loss: 10.8295 | grad_norm: 0.0175 |   287ms/it
+    iter   3970/5000 | loss: 10.8287 | grad_norm: 0.0181 |   288ms/it
+    iter   3980/5000 | loss: 10.8286 | grad_norm: 0.0172 |   288ms/it
+    iter   3990/5000 | loss: 10.8291 | grad_norm: 0.0166 |   289ms/it
+    iter   4000/5000 | loss: 10.8293 | grad_norm: 0.0165 |   287ms/it
+    [observe] 50 steps  meas: P=811W τ=0.288s  |  EMA: P 810→811W τ 0.291→0.290s  |  CI≈76
+    [scheduler] step 4000/5000 (80.0%), CI≈76 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4010/5000 | loss: 10.8291 | grad_norm: 0.0185 |   288ms/it
+    iter   4020/5000 | loss: 10.8289 | grad_norm: 0.0171 |   301ms/it
+    iter   4030/5000 | loss: 10.8292 | grad_norm: 0.0164 |   289ms/it
+    iter   4040/5000 | loss: 10.8290 | grad_norm: 0.0175 |   286ms/it
+    iter   4050/5000 | loss: 10.8287 | grad_norm: 0.0190 |   344ms/it
+    [observe] 50 steps  meas: P=803W τ=0.302s  |  EMA: P 811→808W τ 0.290→0.294s  |  CI≈118
+    [scheduler] step 4050/5000 (81.0%), CI≈118 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4060/5000 | loss: 10.8288 | grad_norm: 0.0173 |   288ms/it
+    iter   4070/5000 | loss: 10.8290 | grad_norm: 0.0177 |   290ms/it
+    iter   4080/5000 | loss: 10.8287 | grad_norm: 0.0175 |   287ms/it
+    iter   4090/5000 | loss: 10.8290 | grad_norm: 0.0189 |   287ms/it
+    iter   4100/5000 | loss: 10.8284 | grad_norm: 0.0171 |   287ms/it
+    [observe] 50 steps  meas: P=818W τ=0.288s  |  EMA: P 808→811W τ 0.294→0.292s  |  CI≈96
+    [scheduler] step 4100/5000 (82.0%), CI≈96 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4110/5000 | loss: 10.8283 | grad_norm: 0.0178 |   286ms/it
+    iter   4120/5000 | loss: 10.8288 | grad_norm: 0.0185 |   287ms/it
+    iter   4130/5000 | loss: 10.8290 | grad_norm: 0.0189 |   286ms/it
+    iter   4140/5000 | loss: 10.8282 | grad_norm: 0.0175 |   289ms/it
+    iter   4150/5000 | loss: 10.8283 | grad_norm: 0.0171 |   286ms/it
+    [observe] 50 steps  meas: P=825W τ=0.287s  |  EMA: P 811→815W τ 0.292→0.290s  |  CI≈82
+    [scheduler] step 4150/5000 (83.0%), CI≈82 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4160/5000 | loss: 10.8290 | grad_norm: 0.0173 |   289ms/it
+    iter   4170/5000 | loss: 10.8291 | grad_norm: 0.0185 |   289ms/it
+    iter   4180/5000 | loss: 10.8292 | grad_norm: 0.0184 |   290ms/it
+    iter   4190/5000 | loss: 10.8285 | grad_norm: 0.0174 |   289ms/it
+    iter   4200/5000 | loss: 10.8286 | grad_norm: 0.0177 |   288ms/it
+    [observe] 50 steps  meas: P=814W τ=0.289s  |  EMA: P 815→815W τ 0.290→0.290s  |  CI≈137
+    [scheduler] step 4200/5000 (84.0%), CI≈137 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4210/5000 | loss: 10.8286 | grad_norm: 0.0179 |   289ms/it
+    iter   4220/5000 | loss: 10.8288 | grad_norm: 0.0176 |   288ms/it
+    iter   4230/5000 | loss: 10.8284 | grad_norm: 0.0169 |   289ms/it
+    iter   4240/5000 | loss: 10.8285 | grad_norm: 0.0178 |   288ms/it
+    iter   4250/5000 | loss: 10.8285 | grad_norm: 0.0185 |   291ms/it
+    [observe] 50 steps  meas: P=812W τ=0.289s  |  EMA: P 815→814W τ 0.290→0.290s  |  CI≈122
+    [scheduler] step 4250/5000 (85.0%), CI≈122 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4260/5000 | loss: 10.8291 | grad_norm: 0.0178 |   288ms/it
+    iter   4270/5000 | loss: 10.8285 | grad_norm: 0.0183 |   289ms/it
+    iter   4280/5000 | loss: 10.8286 | grad_norm: 0.0181 |   291ms/it
+    iter   4290/5000 | loss: 10.8286 | grad_norm: 0.0168 |   294ms/it
+    iter   4300/5000 | loss: 10.8281 | grad_norm: 0.0180 |   290ms/it
+    [observe] 50 steps  meas: P=824W τ=0.290s  |  EMA: P 814→817W τ 0.290→0.290s  |  CI≈69
+    [scheduler] step 4300/5000 (86.0%), CI≈69 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4310/5000 | loss: 10.8285 | grad_norm: 0.0174 |   288ms/it
+    iter   4320/5000 | loss: 10.8284 | grad_norm: 0.0174 |   290ms/it
+    iter   4330/5000 | loss: 10.8288 | grad_norm: 0.0175 |   289ms/it
+    iter   4340/5000 | loss: 10.8284 | grad_norm: 0.0173 |   288ms/it
+    iter   4350/5000 | loss: 10.8284 | grad_norm: 0.0173 |   287ms/it
+    [observe] 50 steps  meas: P=817W τ=0.288s  |  EMA: P 817→817W τ 0.290→0.289s  |  CI≈138
+    [scheduler] step 4350/5000 (87.0%), CI≈138 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4360/5000 | loss: 10.8283 | grad_norm: 0.0170 |   289ms/it
+    iter   4370/5000 | loss: 10.8287 | grad_norm: 0.0181 |   289ms/it
+    iter   4380/5000 | loss: 10.8283 | grad_norm: 0.0162 |   288ms/it
+    iter   4390/5000 | loss: 10.8284 | grad_norm: 0.0181 |   287ms/it
+    iter   4400/5000 | loss: 10.8284 | grad_norm: 0.0168 |   287ms/it
+    [observe] 50 steps  meas: P=817W τ=0.288s  |  EMA: P 817→817W τ 0.289→0.289s  |  CI≈154
+    [scheduler] step 4400/5000 (88.0%), CI≈154 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4410/5000 | loss: 10.8284 | grad_norm: 0.0169 |   283ms/it
+    iter   4420/5000 | loss: 10.8285 | grad_norm: 0.0168 |   287ms/it
+    iter   4430/5000 | loss: 10.8279 | grad_norm: 0.0172 |   297ms/it
+    iter   4440/5000 | loss: 10.8283 | grad_norm: 0.0168 |   297ms/it
+    iter   4450/5000 | loss: 10.8284 | grad_norm: 0.0180 |   293ms/it
+    [observe] 50 steps  meas: P=803W τ=0.292s  |  EMA: P 817→813W τ 0.289→0.290s  |  CI≈71
+    [scheduler] step 4450/5000 (89.0%), CI≈71 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4460/5000 | loss: 10.8285 | grad_norm: 0.0182 |   294ms/it
+    iter   4470/5000 | loss: 10.8282 | grad_norm: 0.0173 |   292ms/it
+    iter   4480/5000 | loss: 10.8284 | grad_norm: 0.0187 |   292ms/it
+    iter   4490/5000 | loss: 10.8282 | grad_norm: 0.0180 |   293ms/it
+    iter   4500/5000 | loss: 10.8281 | grad_norm: 0.0168 |   300ms/it
+    [observe] 50 steps  meas: P=797W τ=0.294s  |  EMA: P 813→808W τ 0.290→0.291s  |  CI≈92
+    [scheduler] step 4500/5000 (90.0%), CI≈92 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4510/5000 | loss: 10.8274 | grad_norm: 0.0179 |   289ms/it
+    iter   4520/5000 | loss: 10.8282 | grad_norm: 0.0174 |   296ms/it
+    iter   4530/5000 | loss: 10.8282 | grad_norm: 0.0177 |   296ms/it
+    iter   4540/5000 | loss: 10.8282 | grad_norm: 0.0182 |   297ms/it
+    iter   4550/5000 | loss: 10.8284 | grad_norm: 0.0182 |   296ms/it
+    [observe] 50 steps  meas: P=792W τ=0.295s  |  EMA: P 808→803W τ 0.291→0.292s  |  CI≈162
+    [scheduler] step 4550/5000 (91.0%), CI≈162 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4560/5000 | loss: 10.8280 | grad_norm: 0.0186 |   293ms/it
+    iter   4570/5000 | loss: 10.8280 | grad_norm: 0.0177 |   284ms/it
+    iter   4580/5000 | loss: 10.8284 | grad_norm: 0.0174 |   286ms/it
+    iter   4590/5000 | loss: 10.8281 | grad_norm: 0.0173 |   292ms/it
+    iter   4600/5000 | loss: 10.8281 | grad_norm: 0.0169 |   296ms/it
+    [observe] 50 steps  meas: P=806W τ=0.290s  |  EMA: P 803→804W τ 0.292→0.292s  |  CI≈62
+    [scheduler] step 4600/5000 (92.0%), CI≈62 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4610/5000 | loss: 10.8280 | grad_norm: 0.0170 |   294ms/it
+    iter   4620/5000 | loss: 10.8281 | grad_norm: 0.0187 |   288ms/it
+    iter   4630/5000 | loss: 10.8283 | grad_norm: 0.0174 |   290ms/it
+    iter   4640/5000 | loss: 10.8280 | grad_norm: 0.0173 |   291ms/it
+    iter   4650/5000 | loss: 10.8286 | grad_norm: 0.0187 |   294ms/it
+    [observe] 50 steps  meas: P=805W τ=0.291s  |  EMA: P 804→804W τ 0.292→0.292s  |  CI≈44
+    [scheduler] step 4650/5000 (93.0%), CI≈44 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4660/5000 | loss: 10.8281 | grad_norm: 0.0173 |   292ms/it
+    iter   4670/5000 | loss: 10.8282 | grad_norm: 0.0188 |   290ms/it
+    iter   4680/5000 | loss: 10.8280 | grad_norm: 0.0173 |   287ms/it
+    iter   4690/5000 | loss: 10.8277 | grad_norm: 0.0180 |   289ms/it
+    iter   4700/5000 | loss: 10.8285 | grad_norm: 0.0178 |   288ms/it
+    [observe] 50 steps  meas: P=807W τ=0.289s  |  EMA: P 804→805W τ 0.292→0.291s  |  CI≈129
+    [scheduler] step 4700/5000 (94.0%), CI≈129 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4710/5000 | loss: 10.8283 | grad_norm: 0.0174 |   290ms/it
+    iter   4720/5000 | loss: 10.8279 | grad_norm: 0.0171 |   289ms/it
+    iter   4730/5000 | loss: 10.8283 | grad_norm: 0.0184 |   358ms/it
+    iter   4740/5000 | loss: 10.8276 | grad_norm: 0.0174 |   288ms/it
+    iter   4750/5000 | loss: 10.8276 | grad_norm: 0.0168 |   294ms/it
+    [observe] 50 steps  meas: P=786W τ=0.304s  |  EMA: P 805→799W τ 0.291→0.295s  |  CI≈105
+    [scheduler] step 4750/5000 (95.0%), CI≈105 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4760/5000 | loss: 10.8281 | grad_norm: 0.0168 |   296ms/it
+    iter   4770/5000 | loss: 10.8284 | grad_norm: 0.0179 |   293ms/it
+    iter   4780/5000 | loss: 10.8280 | grad_norm: 0.0169 |   292ms/it
+    iter   4790/5000 | loss: 10.8280 | grad_norm: 0.0176 |   293ms/it
+    iter   4800/5000 | loss: 10.8281 | grad_norm: 0.0174 |   296ms/it
+    [observe] 50 steps  meas: P=811W τ=0.294s  |  EMA: P 799→803W τ 0.295→0.294s  |  CI≈52
+    [scheduler] step 4800/5000 (96.0%), CI≈52 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4810/5000 | loss: 10.8278 | grad_norm: 0.0166 |   299ms/it
+    iter   4820/5000 | loss: 10.8280 | grad_norm: 0.0178 |   302ms/it
+    iter   4830/5000 | loss: 10.8282 | grad_norm: 0.0179 |   295ms/it
+    iter   4840/5000 | loss: 10.8279 | grad_norm: 0.0185 |   294ms/it
+    iter   4850/5000 | loss: 10.8279 | grad_norm: 0.0176 |   299ms/it
+    [observe] 50 steps  meas: P=792W τ=0.298s  |  EMA: P 803→799W τ 0.294→0.296s  |  CI≈120
+    [scheduler] step 4850/5000 (97.0%), CI≈120 gCO2/kWh → medium bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4860/5000 | loss: 10.8281 | grad_norm: 0.0168 |   294ms/it
+    iter   4870/5000 | loss: 10.8279 | grad_norm: 0.0171 |   293ms/it
+    iter   4880/5000 | loss: 10.8277 | grad_norm: 0.0169 |   295ms/it
+    iter   4890/5000 | loss: 10.8281 | grad_norm: 0.0170 |   296ms/it
+    iter   4900/5000 | loss: 10.8279 | grad_norm: 0.0172 |   292ms/it
+    [observe] 50 steps  meas: P=803W τ=0.294s  |  EMA: P 799→801W τ 0.296→0.295s  |  CI≈118
+    [scheduler] step 4900/5000 (98.0%), CI≈118 gCO2/kWh → low bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4910/5000 | loss: 10.8280 | grad_norm: 0.0167 |   296ms/it
+    iter   4920/5000 | loss: 10.8280 | grad_norm: 0.0162 |   294ms/it
+    iter   4930/5000 | loss: 10.8280 | grad_norm: 0.0169 |   300ms/it
+    iter   4940/5000 | loss: 10.8278 | grad_norm: 0.0178 |   297ms/it
+    iter   4950/5000 | loss: 10.8280 | grad_norm: 0.0181 |   297ms/it
+    [observe] 50 steps  meas: P=815W τ=0.297s  |  EMA: P 801→805W τ 0.295→0.296s  |  CI≈52
+    [scheduler] step 4950/5000 (99.0%), CI≈52 gCO2/kWh → low bucket (dwell=200 steps)
+    [decide] stay on TP=1/PP=2
+    iter   4960/5000 | loss: 10.8278 | grad_norm: 0.0171 |   297ms/it
+    iter   4970/5000 | loss: 10.8281 | grad_norm: 0.0181 |   296ms/it
+    iter   4980/5000 | loss: 10.8280 | grad_norm: 0.0173 |   300ms/it
+    iter   4990/5000 | loss: 10.8275 | grad_norm: 0.0180 |   298ms/it
+    iter   5000/5000 | loss: 10.8284 | grad_norm: 0.0180 |   294ms/it
+
+[watchdog] reached final iter 5000; granting 60s for clean shutdown
+    [observe] 50 steps  meas: P=808W τ=0.297s  |  EMA: P 805→806W τ 0.296→0.296s  |  CI≈58
+  [ckpt] Skipping final checkpoint (end of training, no next phase to load)
+/usr/local/lib/python3.12/dist-packages/torch/distributed/distributed_c10d.py:4814: UserWarning: No device id is provided via `init_process_group` or `barrier `. Using the current device set by the user. 
+  warnings.warn(  # warn only once
+/usr/local/lib/python3.12/dist-packages/torch/distributed/distributed_c10d.py:4814: UserWarning: No device id is provided via `init_process_group` or `barrier `. Using the current device set by the user. 
+  warnings.warn(  # warn only once
+/usr/local/lib/python3.12/dist-packages/torch/distributed/distributed_c10d.py:4814: UserWarning: No device id is provided via `init_process_group` or `barrier `. Using the current device set by the user. 
+  warnings.warn(  # warn only once
+
+======================================================================
+  ONLINE ELASTIC TRAINING COMPLETE
+======================================================================
+  Megatron init:       1.3s (one-time)
+  Total wall:          1477.0s
+  Total training:      1476.0s
+  Total reconfig:      1.0s
+  Total checkpoint:    0.0s
+  Training fraction:   99.9%
+  Phases scheduled:    1
+
+  Phase  Config                    Steps    Train      Iter   Pow(W)       Loss
+  ---------------------------------------------------------------------------
+  1      dp2_tp1_pp2                5000  1476.0s     295ms/it      805    10.8290
+
+  Phases log: /afs/cs.pitt.edu/usr0/wat29/scheduling-carbon-aware-3d-parallelism/runs/static_b_local_20260509_215822/phases.json
+  Summary:    /afs/cs.pitt.edu/usr0/wat29/scheduling-carbon-aware-3d-parallelism/runs/static_b_local_20260509_215822/elastic_results.json
+======================================================================
+
+/usr/local/lib/python3.12/dist-packages/torch/distributed/distributed_c10d.py:4814: UserWarning: No device id is provided via `init_process_group` or `barrier `. Using the current device set by the user. 
+  warnings.warn(  # warn only once
+  [cleanup] Destroyed 17 NCCL process groups
+[shutdown] clean exit
+[PowerMonitor] Stopped. 3045 samples collected.
+
+============================================================
+  NAIVE ELASTIC TRAINING SUCCEEDED
+============================================================
+  Wall time:         1523.5s
+  Avg cluster power: 2417.3W
+  Power samples:     3045
+  Log:               /afs/cs.pitt.edu/usr0/wat29/scheduling-carbon-aware-3d-parallelism/runs/static_b_local_20260509_215822/naive_elastic_gpt2_medium.log
+  Power:             /afs/cs.pitt.edu/usr0/wat29/scheduling-carbon-aware-3d-parallelism/runs/static_b_local_20260509_215822/naive_elastic_gpt2_medium_power.csv
+  Phases:            /afs/cs.pitt.edu/usr0/wat29/scheduling-carbon-aware-3d-parallelism/runs/static_b_local_20260509_215822/phases.json
+  Inner summary:     /afs/cs.pitt.edu/usr0/wat29/scheduling-carbon-aware-3d-parallelism/runs/static_b_local_20260509_215822/elastic_results.json
+============================================================
+

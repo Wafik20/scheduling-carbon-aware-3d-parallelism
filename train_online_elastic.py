@@ -50,6 +50,7 @@ import csv
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import threading
@@ -439,6 +440,66 @@ def _extract_step(line):
     return None
 
 
+# ── Process-group cleanup helpers ────────────────────────────
+#
+# torchrun spawns 4 worker ranks. If the parent (apptainer/torchrun) exits
+# but a worker is stuck on a NCCL collective, that worker can survive for
+# up to NCCL's default 30-minute timeout, holding GPU memory and ~80W of
+# compute. The next run on the same hardware then starts contaminated —
+# we observed exactly this in static_a's anomalous 400s low-power "warmup"
+# after a preceding naive_hybrid run with many reshards.
+#
+# Fix: spawn the subprocess in its own process group (start_new_session=True
+# in Popen below) and unconditionally sweep that group on exit. Any survivor
+# gets SIGTERM → grace → SIGKILL.
+
+def _kill_process_group(proc, sig=signal.SIGTERM):
+    """Send `sig` to every process in proc's process group. No-op if
+    the group is already gone."""
+    try:
+        pgid = os.getpgid(proc.pid)
+        os.killpg(pgid, sig)
+    except (ProcessLookupError, PermissionError, OSError):
+        pass
+
+
+def _ensure_group_dead(proc, soft_grace_s=5.0):
+    """Belt-and-suspenders cleanup: SIGTERM the group, wait briefly for
+    children to exit, then SIGKILL anything still alive. Called from the
+    `finally:` of run_with_streaming so workers can't outlive their parent.
+
+    Returns nothing; safe to call multiple times. Drains `proc` to avoid
+    leaving a zombie.
+    """
+    # If the parent itself is still up, give it a beat before signaling —
+    # it may be in the middle of normal teardown.
+    if proc.poll() is None:
+        try:
+            proc.wait(timeout=1.0)
+        except subprocess.TimeoutExpired:
+            pass
+
+    _kill_process_group(proc, signal.SIGTERM)
+    deadline = time.time() + soft_grace_s
+    group_gone = False
+    while time.time() < deadline:
+        try:
+            os.getpgid(proc.pid)   # raises if the group is gone
+        except (ProcessLookupError, OSError):
+            group_gone = True
+            break
+        time.sleep(0.2)
+
+    if not group_gone:
+        # Grace expired — anything still in the group gets SIGKILL.
+        _kill_process_group(proc, signal.SIGKILL)
+
+    try:
+        proc.wait(timeout=2.0)
+    except subprocess.TimeoutExpired:
+        pass
+
+
 # ── Streaming execution ──────────────────────────────────────
 
 def run_with_streaming(cmd, monitor, logfile=None, train_iters=None,
@@ -458,6 +519,12 @@ def run_with_streaming(cmd, monitor, logfile=None, train_iters=None,
     `grace_after_final_s` and SIGKILL at `hard_kill_s`. Without this the
     GPUs sit at idle ~200W and the launcher's PowerMonitor pollutes the
     power log with thousands of seconds of post-training data.
+
+    Process-group discipline: the subprocess is spawned with
+    start_new_session=True so killpg can sweep torchrun + all 4 ranks in
+    one call. The finally: block runs _ensure_group_dead unconditionally,
+    so stuck NCCL workers can't survive past this function and contaminate
+    the next run on the same GPUs.
     """
     info = {"errors": [], "iter_ms": [], "losses": []}
     max_step_seen = 0  # monotonic: never rewind
@@ -467,7 +534,9 @@ def run_with_streaming(cmd, monitor, logfile=None, train_iters=None,
 
     def watchdog():
         # Polls every 2s. Does nothing until we've seen the final iter,
-        # then enforces the grace + hard-kill timeouts.
+        # then enforces the grace + hard-kill timeouts. Signals go to the
+        # whole process group, not just the parent — torchrun's worker
+        # ranks share the group via start_new_session=True below.
         while not stop_wd.wait(2.0):
             p = proc_box["p"]
             if p is None or p.poll() is not None:
@@ -477,18 +546,16 @@ def run_with_streaming(cmd, monitor, logfile=None, train_iters=None,
                 continue
             elapsed = time.time() - t0
             if elapsed > hard_kill_s:
-                print(f"\n[watchdog] {elapsed:.0f}s after final iter — SIGKILL",
-                      file=sys.stderr, flush=True)
-                try: p.kill()
-                except Exception: pass
+                print(f"\n[watchdog] {elapsed:.0f}s after final iter "
+                      f"— SIGKILL group", file=sys.stderr, flush=True)
+                _kill_process_group(p, signal.SIGKILL)
                 return
             if elapsed > grace_after_final_s:
                 if not getattr(watchdog, "_termed", False):
                     print(f"\n[watchdog] {elapsed:.0f}s after final iter "
-                          f"— SIGTERM (process appears hung in shutdown)",
+                          f"— SIGTERM group (process appears hung in shutdown)",
                           file=sys.stderr, flush=True)
-                    try: p.terminate()
-                    except Exception: pass
+                    _kill_process_group(p, signal.SIGTERM)
                     watchdog._termed = True
 
     wd_thread = threading.Thread(target=watchdog, daemon=True)
@@ -498,6 +565,8 @@ def run_with_streaming(cmd, monitor, logfile=None, train_iters=None,
         proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, bufsize=1,
+            start_new_session=True,   # own process group, so killpg reaches
+                                      # torchrun + all worker ranks in one call
         )
         proc_box["p"] = proc
         wd_thread.start()
@@ -551,6 +620,12 @@ def run_with_streaming(cmd, monitor, logfile=None, train_iters=None,
         stop_wd.set()
         if lf:
             lf.close()
+        # Don't let stuck workers outlive us. NCCL has a 30-min default
+        # timeout; any survivor holds GPU memory + ~80W per GPU until
+        # then, which contaminates the next run on the same hardware.
+        # Safe to call even if proc exited cleanly — it's a no-op then.
+        if proc_box["p"] is not None:
+            _ensure_group_dead(proc_box["p"])
 
     if info["iter_ms"]:
         info["avg_iter_ms"] = sum(info["iter_ms"]) / len(info["iter_ms"])
