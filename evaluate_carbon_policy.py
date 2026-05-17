@@ -1,4 +1,4 @@
-"""Evaluate a trained carbon-aware policy against baselines.
+"""Evaluate carbon-aware scheduling baselines.
 
 Runs N episodes for each policy on identical trace-offset draws so the
 comparison is paired. Produces:
@@ -9,15 +9,16 @@ comparison is paired. Produces:
 Usage:
     python evaluate_carbon_policy.py \
         --trace /path/to/carbon_week.csv \
-        --model runs/ppo_carbon/model.zip \
         --tokens 3000000000 \
         --n-episodes 32 \
-        --out runs/ppo_carbon/eval
+        --out runs/static_smart_oracle/eval
 """
 
 from __future__ import annotations
 
 import argparse
+import json
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -25,29 +26,69 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from carbon_aware_env import (
-    SimConfig, default_config, load_carbon_trace, make_env,
-    rollout_static, rollout_ci_threshold, plot_comparison, CarbonSim,
+    default_config, load_carbon_trace, make_env,
+    rollout_static, rollout_smart_switch, rollout_oracle_dp,
+    plot_comparison, CarbonSim, _fastest_strategy_idx, _replay_action_sequence,
 )
 
 
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--trace', required=True)
-    p.add_argument('--model', required=True, help='Path to SB3 model .zip')
-    p.add_argument('--algo', choices=['ppo', 'dqn'], default='ppo')
+    p.add_argument('--include-rl', action='store_true',
+                   help='Evaluate saved RL policy as an additional baseline.')
+    p.add_argument('--model', default=None, help='Path to SB3 model .zip')
+    p.add_argument('--algo', choices=['ppo', 'dqn'], default=None)
     p.add_argument('--tokens', type=int, default=3_000_000_000)
     p.add_argument('--global-batch-size', type=int, default=16)
     p.add_argument('--seq-length', type=int, default=1024)
+    p.add_argument('--model-name', default=None,
+                   help='Model label for feasibility summaries')
+    p.add_argument('--model-num-params', type=int, default=None,
+                   help='Model parameter count for memory feasibility filtering')
+    p.add_argument('--filter-strategies', action='store_true',
+                   help='Filter TP/PP/DP strategies by model memory feasibility')
+    p.add_argument('--gpu-memory-gb', type=float, default=48.0,
+                   help='Physical memory per GPU for feasibility filtering')
+    p.add_argument('--usable-memory-frac', type=float, default=0.90,
+                   help='Usable fraction of GPU memory for feasibility filtering')
+    p.add_argument('--bytes-per-param-training', type=float, default=18.0,
+                   help='Training-state bytes per parameter before TP/PP sharding')
+    p.add_argument('--activation-reserve-gb', type=float, default=4.0,
+                   help='Extra per-GPU activation/workspace memory reserve')
+    p.add_argument('--min-pp', type=int, default=1,
+                   help='Minimum PP degree allowed by feasibility filtering')
+    p.add_argument('--quiet-feasibility', action='store_true',
+                   help='Suppress feasibility summary printing')
     p.add_argument('--forecast-horizon-h', type=int, default=6)
     p.add_argument('--max-episode-hours', type=float, default=72.0)
     p.add_argument('--n-episodes', type=int, default=32,
                    help='Number of trace-offset draws to evaluate on')
-    p.add_argument('--ci-threshold', type=float, default=60.0,
-                   help='Threshold for CI-threshold baseline (g/kWh)')
-    p.add_argument('--low-idx', type=int, default=0,
-                   help='Strategy index for low-CI in threshold baseline')
-    p.add_argument('--high-idx', type=int, default=2,
-                   help='Strategy index for high-CI in threshold baseline')
+    p.add_argument('--smart-fast-idx', type=int, default=-1,
+                   help='Fast/catch-up strategy index for smart-switch baseline. '
+                        'Use -1 to automatically pick the highest-throughput '
+                        'strategy.')
+    p.add_argument('--smart-lookahead-h', type=int, default=6,
+                   help='Lookahead window for smart-switch clean catch-up CI')
+    p.add_argument('--smart-margin-g', type=float, default=0.0,
+                   help='Extra required carbon benefit before smart-switch '
+                        'changes strategy')
+    p.add_argument('--smart-candidates', type=str, default=None,
+                   help='Comma-separated strategy indices for smart-switch '
+                        'dirty-window candidates, e.g. "1,2". Default None '
+                        'means auto-select lower-power/slower candidates.')
+    p.add_argument('--oracle-token-quantum', type=float, default=5_000_000.0,
+                   help='Token discretization for oracle DP baseline')
+    p.add_argument('--oracle-switch-cost-mode',
+                   choices=['sim', 'fixed'],
+                   default='sim',
+                   help='Switch-cost model for oracle DP baseline')
+    p.add_argument('--debug-oracle', action='store_true',
+                   help='Print oracle DP internals and assert if oracle loses '
+                        'to completed static/smart schedules')
+    p.add_argument('--fixed-offset-h', type=float, default=None,
+                   help='Evaluate every episode at this exact trace offset '
+                        '(hours), useful for reproducing oracle bugs')
     p.add_argument('--n-detail-rollouts', type=int, default=3,
                    help='How many per-episode detail plots to save')
     p.add_argument('--seed', type=int, default=0)
@@ -68,8 +109,39 @@ def run_rl_episode(model, env, deterministic: bool = True) -> CarbonSim:
     return env.sim
 
 
+def detect_model_algo(model_path: str | Path) -> str | None:
+    """Infer SB3 algorithm family from the saved policy class metadata."""
+    path = Path(model_path)
+    if not path.exists() and path.suffix != '.zip':
+        path = path.with_suffix(path.suffix + '.zip')
+    if not path.exists():
+        return None
+
+    try:
+        with zipfile.ZipFile(path) as zf:
+            data = json.loads(zf.read('data'))
+    except (OSError, KeyError, json.JSONDecodeError, zipfile.BadZipFile):
+        return None
+
+    policy_class = data.get('policy_class', {})
+    module = ''
+    if isinstance(policy_class, dict):
+        module = str(policy_class.get('__module__', ''))
+    if '.dqn.' in module:
+        return 'dqn'
+    if 'common.policies' in module:
+        return 'ppo'
+    return None
+
+
 def main():
     args = parse_args()
+    if args.include_rl:
+        if args.model is None:
+            raise ValueError('--model is required when --include-rl is set')
+        if args.algo is None:
+            raise ValueError('--algo is required when --include-rl is set')
+
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -78,32 +150,108 @@ def main():
         pretraining_tokens=args.tokens,
         global_batch_size=args.global_batch_size,
         seq_length=args.seq_length,
+        model_num_params=args.model_num_params,
+        model_name=args.model_name,
+        filter_strategies=args.filter_strategies,
+        gpu_memory_gb=args.gpu_memory_gb,
+        usable_memory_frac=args.usable_memory_frac,
+        bytes_per_param_training=args.bytes_per_param_training,
+        activation_reserve_gb=args.activation_reserve_gb,
+        min_pp=args.min_pp,
+        verbose_feasibility=not args.quiet_feasibility,
     )
-
-    # Load model
-    if args.algo == 'ppo':
-        from stable_baselines3 import PPO
-        model = PPO.load(args.model)
+    dynamic_scheduling_applicable = len(cfg.strategies) >= 2
+    if not dynamic_scheduling_applicable:
+        model_label = args.model_name or (
+            f'{args.model_num_params / 1e9:.0f}B'
+            if args.model_num_params is not None else 'model'
+        )
+        print(
+            f"[skip] {model_label}: only {len(cfg.strategies)} feasible strategy. "
+            "Skipping oracle/scheduler savings comparison."
+        )
+        print(
+            "Only one feasible strategy remained for this model size on the "
+            "target hardware, so dynamic scheduling is not applicable. We "
+            "report this as a feasibility-boundary case rather than an "
+            "oracle/scheduler win."
+        )
+    include_rl_eval = args.include_rl and dynamic_scheduling_applicable
+    if args.include_rl and not include_rl_eval:
+        print('[skip] RL baseline disabled for static-only feasible case.')
+    if args.smart_candidates is None or args.smart_candidates.strip() == '':
+        smart_candidates = None
     else:
-        from stable_baselines3 import DQN
-        model = DQN.load(args.model)
+        requested_smart_candidates = [
+            int(x) for x in args.smart_candidates.split(',')
+            if x.strip()
+        ]
+        original_to_filtered_idx = {
+            int(s.get('original_strategy_idx', i)): i
+            for i, s in enumerate(cfg.strategies)
+        }
+        smart_candidates = []
+        removed_candidates = []
+        for idx in requested_smart_candidates:
+            if idx in original_to_filtered_idx:
+                smart_candidates.append(original_to_filtered_idx[idx])
+            else:
+                removed_candidates.append(idx)
+        if removed_candidates:
+            print(
+                '[warning] Smart-switch candidates removed by feasibility '
+                f'filter or unavailable: {removed_candidates}'
+            )
+        if not smart_candidates:
+            print(
+                '[warning] No requested smart-switch candidates remain; '
+                'using auto-selected feasible lower-power candidates.'
+            )
+            smart_candidates = None
 
-    # Build a single env for evaluation (we control the seed/offsets manually)
-    env = make_env(
-        cfg, trace_t, trace_ci,
-        forecast_horizon_h=args.forecast_horizon_h,
-        max_episode_hours=args.max_episode_hours,
-        random_start=True,
-        wrap_trace=args.wrap_trace,
-        seed=args.seed,
-    )
+    model = None
+    env = None
+    algo = args.algo
+    if include_rl_eval:
+        # Load model only when requested, so the default static/smart/oracle
+        # evaluation path has no Stable-Baselines dependency.
+        detected_algo = detect_model_algo(args.model)
+        if detected_algo is not None and detected_algo != algo:
+            print(f'Model metadata says {detected_algo.upper()}, '
+                  f'overriding --algo {algo}.')
+            algo = detected_algo
+
+        if algo == 'ppo':
+            from stable_baselines3 import PPO
+            model = PPO.load(args.model)
+        else:
+            from stable_baselines3 import DQN
+            model = DQN.load(args.model)
+
+        # Build a single env for evaluation (we control offsets manually).
+        env = make_env(
+            cfg, trace_t, trace_ci,
+            forecast_horizon_h=args.forecast_horizon_h,
+            max_episode_hours=args.max_episode_hours,
+            random_start=True,
+            wrap_trace=args.wrap_trace,
+            seed=args.seed,
+        )
 
     # Pre-draw N trace offsets so every policy sees the same conditions
     rng = np.random.default_rng(args.seed)
     trace_dur = trace_t[-1] + 3600.0
-    slack = args.max_episode_hours * 3600.0 + 3600.0
+    baseline_max_hours = args.max_episode_hours * 1.5
+    slack = (
+        baseline_max_hours * 3600.0
+        + 3600.0
+        + max(args.forecast_horizon_h, args.smart_lookahead_h) * 3600.0
+    )
     max_offset = max(0.0, trace_dur - slack)
-    offsets = rng.uniform(0.0, max_offset, size=args.n_episodes)
+    if args.fixed_offset_h is None:
+        offsets = rng.uniform(0.0, max_offset, size=args.n_episodes)
+    else:
+        offsets = np.full(args.n_episodes, args.fixed_offset_h * 3600.0)
 
     records = []
     detail_rollouts = []  # list of (offset, {label: CarbonSim})
@@ -112,22 +260,25 @@ def main():
         episode_sims = {}
 
         # ----- RL policy -----
-        obs, _ = env.reset(options={'trace_offset_s': float(offset)})
-        done = False
-        while not done:
-            action, _ = model.predict(obs, deterministic=True)
-            obs, _, terminated, truncated, _ = env.step(int(action))
-            done = terminated or truncated
-        rl_sim = env.sim
-        episode_sims['RL'] = rl_sim
-        records.append({
-            'episode': ep_i, 'offset_h': offset / 3600.0, 'policy': 'RL',
-            'carbon_g': rl_sim.total_carbon_g,
-            'energy_kj': rl_sim.total_energy_j / 1000,
-            'wall_h': rl_sim.cursor_s / 3600.0,
-            'reshards': rl_sim.reshard_count,
-            'tokens_done': rl_sim.tokens_completed,
-        })
+        rl_sim = None
+        if include_rl_eval:
+            obs, _ = env.reset(options={'trace_offset_s': float(offset)})
+            done = False
+            while not done:
+                action, _ = model.predict(obs, deterministic=True)
+                obs, _, terminated, truncated, _ = env.step(int(action))
+                done = terminated or truncated
+            rl_sim = env.sim
+            episode_sims['RL'] = rl_sim
+            records.append({
+                'episode': ep_i, 'offset_h': offset / 3600.0, 'policy': 'RL',
+                'carbon_g': rl_sim.total_carbon_g,
+                'energy_kj': rl_sim.total_energy_j / 1000,
+                'wall_h': rl_sim.cursor_s / 3600.0,
+                'reshards': rl_sim.reshard_count,
+                'tokens_done': rl_sim.tokens_completed,
+                'completed': rl_sim.tokens_completed >= args.tokens - 1e-6,
+            })
 
         # ----- Static baselines (one per strategy) -----
         for i, s in enumerate(cfg.strategies):
@@ -144,57 +295,250 @@ def main():
                 'wall_h': sim.cursor_s / 3600.0,
                 'reshards': sim.reshard_count,
                 'tokens_done': sim.tokens_completed,
+                'completed': sim.tokens_completed >= args.tokens - 1e-6,
             })
 
-        # ----- CI-threshold baseline -----
-        sim_th = rollout_ci_threshold(cfg, trace_t, trace_ci, float(offset),
-                                      low_ci_idx=args.low_idx,
-                                      high_ci_idx=args.high_idx,
-                                      threshold_g_per_kwh=args.ci_threshold,
-                                      max_hours=args.max_episode_hours * 1.5,
-                                      wrap_trace=args.wrap_trace)
-        label = f'threshold@{args.ci_threshold:.0f}'
-        episode_sims[label] = sim_th
-        records.append({
-            'episode': ep_i, 'offset_h': offset / 3600.0, 'policy': label,
-            'carbon_g': sim_th.total_carbon_g,
-            'energy_kj': sim_th.total_energy_j / 1000,
-            'wall_h': sim_th.cursor_s / 3600.0,
-            'reshards': sim_th.reshard_count,
-            'tokens_done': sim_th.tokens_completed,
-        })
+        sim_smart = None
+        sim_oracle = None
+        if dynamic_scheduling_applicable:
+            # ----- Smart-switch baseline -----
+            sim_smart = rollout_smart_switch(
+                cfg,
+                trace_t,
+                trace_ci,
+                float(offset),
+                fast_idx=args.smart_fast_idx,
+                candidate_indices=smart_candidates,
+                lookahead_h=args.smart_lookahead_h,
+                margin_g=args.smart_margin_g,
+                max_hours=args.max_episode_hours * 1.5,
+                wrap_trace=args.wrap_trace,
+            )
+            label = f'smart-switch({args.smart_lookahead_h}h)'
+            episode_sims[label] = sim_smart
+            smart_actions = [rec.strategy_idx for rec in sim_smart.history]
+            smart_initial_idx = (
+                _fastest_strategy_idx(cfg)
+                if args.smart_fast_idx is None or args.smart_fast_idx < 0
+                else args.smart_fast_idx
+            )
+            if args.debug_oracle:
+                smart_replay = _replay_action_sequence(
+                    cfg,
+                    trace_t,
+                    trace_ci,
+                    float(offset),
+                    smart_actions,
+                    initial_strategy_idx=smart_initial_idx,
+                    decision_interval_s=3600.0,
+                    max_hours=args.max_episode_hours * 1.5,
+                    wrap_trace=args.wrap_trace,
+                )
+                print('[oracle debug] smart-switch rollout')
+                print('smart actions:', smart_actions)
+                print(
+                    'smart strategy tuples:',
+                    [
+                        (cfg.strategies[a]['tp'], cfg.strategies[a]['pp'])
+                        for a in smart_actions
+                    ],
+                )
+                print('smart carbon:', sim_smart.total_carbon_g)
+                print('smart wall_h:', sim_smart.cursor_s / 3600.0)
+                print('smart reshards:', sim_smart.reshard_count)
+                print('smart replay carbon:', smart_replay.total_carbon_g)
+                print('smart replay wall_h:', smart_replay.cursor_s / 3600.0)
+                print('smart replay reshards:', smart_replay.reshard_count)
+            records.append({
+                'episode': ep_i, 'offset_h': offset / 3600.0, 'policy': label,
+                'carbon_g': sim_smart.total_carbon_g,
+                'energy_kj': sim_smart.total_energy_j / 1000,
+                'wall_h': sim_smart.cursor_s / 3600.0,
+                'reshards': sim_smart.reshard_count,
+                'tokens_done': sim_smart.tokens_completed,
+                'completed': sim_smart.tokens_completed >= args.tokens - 1e-6,
+            })
+
+            # ----- Oracle DP baseline -----
+            sim_oracle = rollout_oracle_dp(
+                cfg,
+                trace_t,
+                trace_ci,
+                float(offset),
+                decision_interval_s=3600.0,
+                max_hours=args.max_episode_hours * 1.5,
+                token_quantum=args.oracle_token_quantum,
+                switch_cost_mode=args.oracle_switch_cost_mode,
+                wrap_trace=args.wrap_trace,
+                candidate_action_sequences=[smart_actions],
+                candidate_initial_strategy_indices=[smart_initial_idx],
+                debug=args.debug_oracle,
+            )
+            label = 'oracle-dp'
+            episode_sims[label] = sim_oracle
+            records.append({
+                'episode': ep_i, 'offset_h': offset / 3600.0, 'policy': label,
+                'carbon_g': sim_oracle.total_carbon_g,
+                'energy_kj': sim_oracle.total_energy_j / 1000,
+                'wall_h': sim_oracle.cursor_s / 3600.0,
+                'reshards': sim_oracle.reshard_count,
+                'tokens_done': sim_oracle.tokens_completed,
+                'completed': sim_oracle.tokens_completed >= args.tokens - 1e-6,
+            })
 
         if ep_i < args.n_detail_rollouts:
             detail_rollouts.append((offset, episode_sims))
 
-        print(f'episode {ep_i+1:>2}/{args.n_episodes} '
-              f'offset={offset/3600.0:7.2f}h  '
-              f'RL={rl_sim.total_carbon_g:7.1f}g  '
-              f'best-static={min(s.total_carbon_g for k, s in episode_sims.items() if k.startswith("static")):7.1f}g  '
-              f'threshold={sim_th.total_carbon_g:7.1f}g  '
-              f'reshards(RL)={rl_sim.reshard_count}')
+        static_sims = [
+            s for k, s in episode_sims.items()
+            if k.startswith('static')
+        ]
+        completed_static_sims = [
+            s for s in static_sims
+            if s.tokens_completed >= args.tokens - 1e-6
+        ]
+        best_static_pool = completed_static_sims or static_sims
+        best_static_note = '' if completed_static_sims else ' (incomplete)'
+        best_static_carbon = min(s.total_carbon_g for s in best_static_pool)
+
+        if completed_static_sims:
+            best_completed_static_carbon = min(
+                sim.total_carbon_g for sim in completed_static_sims
+            )
+        else:
+            best_completed_static_carbon = float('inf')
+
+        smart_label = None
+        smart_carbon = float('inf')
+        if dynamic_scheduling_applicable:
+            smart_labels = [
+                name for name in episode_sims
+                if name.startswith('smart-switch')
+            ]
+            smart_label = smart_labels[0] if smart_labels else None
+            if smart_label is not None:
+                smart_sim = episode_sims[smart_label]
+                smart_completed = smart_sim.tokens_completed >= args.tokens - 1e-6
+                smart_carbon = (
+                    smart_sim.total_carbon_g if smart_completed else float('inf')
+                )
+
+        rl_carbon = None
+        if include_rl_eval and rl_sim is not None:
+            rl_carbon = (
+                rl_sim.total_carbon_g
+                if rl_sim.tokens_completed >= args.tokens - 1e-6
+                else float('inf')
+            )
+        oracle_carbon = (
+            episode_sims['oracle-dp'].total_carbon_g
+            if dynamic_scheduling_applicable
+            else float('inf')
+        )
+        available = []
+        if np.isfinite(best_completed_static_carbon):
+            available.append(best_completed_static_carbon)
+        if np.isfinite(smart_carbon):
+            available.append(smart_carbon)
+        if rl_carbon is not None and np.isfinite(rl_carbon):
+            available.append(rl_carbon)
+        available_best = min(available) if available else float('inf')
+        if dynamic_scheduling_applicable and args.debug_oracle:
+            print('[oracle debug] comparison')
+            print('best_static_carbon:', best_completed_static_carbon)
+            print('smart_label:', smart_label)
+            print('smart_carbon:', smart_carbon)
+            if include_rl_eval:
+                print('rl_carbon:', rl_carbon)
+            print('oracle_carbon:', oracle_carbon)
+        oracle_tolerance_g = 1e-3
+        if (dynamic_scheduling_applicable
+                and oracle_carbon > available_best + oracle_tolerance_g):
+            print('\n[ORACLE BUG] oracle-dp is worse than an available schedule')
+            print('episode:', ep_i)
+            print('offset_h:', offset / 3600.0)
+            print('best_static_carbon:', best_completed_static_carbon)
+            print('smart_label:', smart_label)
+            print('smart_carbon:', smart_carbon)
+            if include_rl_eval:
+                print('rl_carbon:', rl_carbon)
+            print('oracle_carbon:', oracle_carbon)
+
+            for name, sim in episode_sims.items():
+                print(
+                    name,
+                    'carbon=', sim.total_carbon_g,
+                    'wall_h=', sim.cursor_s / 3600.0,
+                    'reshards=', sim.reshard_count,
+                    'tokens=', sim.tokens_completed,
+                    'completed=', sim.tokens_completed >= args.tokens - 1e-6,
+                )
+
+            if args.debug_oracle:
+                raise AssertionError(
+                    'oracle-dp is worse than a completed static/smart schedule'
+                )
+
+        msg = (
+            f'episode {ep_i+1:>2}/{args.n_episodes} '
+            f'offset={offset/3600.0:7.2f}h  '
+        )
+        if include_rl_eval and rl_sim is not None:
+            msg += f'RL={rl_sim.total_carbon_g:7.1f}g  '
+        msg += (
+            f'best-static{best_static_note}={best_static_carbon:7.1f}g  '
+        )
+        if dynamic_scheduling_applicable:
+            msg += (
+                f'smart={sim_smart.total_carbon_g:7.1f}g  '
+                f'oracle={sim_oracle.total_carbon_g:7.1f}g'
+            )
+        else:
+            msg += 'dynamic=not-applicable'
+        if include_rl_eval and rl_sim is not None:
+            msg += f'  reshards(RL)={rl_sim.reshard_count}'
+        print(msg)
 
     # ---- Save raw records ----
     df = pd.DataFrame(records)
     df.to_csv(out_dir / 'results.csv', index=False)
     print(f'\nSaved per-episode results to {out_dir / "results.csv"}')
+    completed_df = df[df['completed']].copy()
+    incomplete = df[~df['completed']].copy()
+    if len(incomplete):
+        incomplete_counts = incomplete.groupby('policy').size().sort_values(ascending=False)
+        print('\nIncomplete runs excluded from carbon summaries:')
+        print(incomplete_counts.to_string())
 
     # ---- Aggregate plot: box + strip per policy ----
     fig, (ax_c, ax_w) = plt.subplots(1, 2, figsize=(14, 6))
     policies = list(df['policy'].unique())
-    carbons_per_policy = [df.loc[df['policy'] == p, 'carbon_g'].values for p in policies]
+    carbon_policies = [
+        p for p in policies
+        if len(completed_df.loc[completed_df['policy'] == p])
+    ]
+    carbon_plot_df = completed_df if carbon_policies else df
+    if not carbon_policies:
+        carbon_policies = policies
+    carbons_per_policy = [
+        carbon_plot_df.loc[carbon_plot_df['policy'] == p, 'carbon_g'].values
+        for p in carbon_policies
+    ]
     walls_per_policy = [df.loc[df['policy'] == p, 'wall_h'].values for p in policies]
 
-    bp = ax_c.boxplot(carbons_per_policy, labels=policies, patch_artist=True,
+    bp = ax_c.boxplot(carbons_per_policy, labels=carbon_policies, patch_artist=True,
                        showfliers=False)
-    for patch, color in zip(bp['boxes'], plt.cm.tab10(np.linspace(0, 1, len(policies)))):
+    for patch, color in zip(bp['boxes'], plt.cm.tab10(np.linspace(0, 1, len(carbon_policies)))):
         patch.set_facecolor(color)
         patch.set_alpha(0.4)
     for i, vals in enumerate(carbons_per_policy):
         x = np.random.normal(i + 1, 0.05, size=len(vals))
         ax_c.scatter(x, vals, alpha=0.6, s=18, color='k')
     ax_c.set_ylabel('Total carbon (gCO₂)')
-    ax_c.set_title(f'Carbon over {args.n_episodes} trace-offset draws')
+    if len(completed_df):
+        ax_c.set_title('Carbon over completed fixed-token runs')
+    else:
+        ax_c.set_title('Carbon (no completed fixed-token runs)')
     ax_c.grid(True, alpha=0.3, axis='y')
     plt.setp(ax_c.get_xticklabels(), rotation=25, ha='right')
 
@@ -218,17 +562,29 @@ def main():
 
     # ---- Per-episode detail plots ----
     for offset, episode_sims in detail_rollouts:
-        # Drop the non-best static rollouts to keep the figure readable
-        # — keep RL, best-static, threshold
+        # Drop non-best static rollouts to keep the figure readable.
+        static_labels = [k for k in episode_sims if k.startswith('static')]
+        completed_static_labels = [
+            k for k in static_labels
+            if episode_sims[k].tokens_completed >= args.tokens - 1e-6
+        ]
         best_static_label = min(
-            (k for k in episode_sims if k.startswith('static')),
+            completed_static_labels or static_labels,
             key=lambda k: episode_sims[k].total_carbon_g,
         )
         keep = {
-            f'RL ({args.algo.upper()})': episode_sims['RL'],
             f'best static = {best_static_label}': episode_sims[best_static_label],
-            f'threshold@{args.ci_threshold:.0f}': episode_sims[f'threshold@{args.ci_threshold:.0f}'],
         }
+        smart_plot_label = f'smart-switch({args.smart_lookahead_h}h)'
+        if smart_plot_label in episode_sims:
+            keep[smart_plot_label] = episode_sims[smart_plot_label]
+        if 'oracle-dp' in episode_sims:
+            keep['oracle-dp'] = episode_sims['oracle-dp']
+        if include_rl_eval:
+            keep = {
+                f'RL ({algo.upper()})': episode_sims['RL'],
+                **keep,
+            }
         fig = plot_comparison(keep, cfg,
                               title=f'Episode at trace offset {offset/3600.0:.2f}h')
         fname = out_dir / f'rollout_offset_{offset/3600.0:.1f}h.png'
@@ -237,18 +593,31 @@ def main():
         print(f'Saved {fname}')
 
     # ---- Summary table ----
-    summary = (df.groupby('policy')
-                 .agg(carbon_mean=('carbon_g', 'mean'),
-                      carbon_std=('carbon_g', 'std'),
-                      carbon_min=('carbon_g', 'min'),
-                      carbon_max=('carbon_g', 'max'),
-                      wall_mean=('wall_h', 'mean'),
-                      reshards_med=('reshards', 'median'))
-                 .round(2)
-                 .sort_values('carbon_mean'))
-    print('\nSummary across episodes:')
-    print(summary.to_string())
-    summary.to_csv(out_dir / 'summary.csv')
+    if len(completed_df):
+        summary = (completed_df.groupby('policy')
+                     .agg(completed_runs=('completed', 'size'),
+                          carbon_mean=('carbon_g', 'mean'),
+                          carbon_std=('carbon_g', 'std'),
+                          carbon_min=('carbon_g', 'min'),
+                          carbon_max=('carbon_g', 'max'),
+                          wall_mean=('wall_h', 'mean'),
+                          reshards_med=('reshards', 'median'),
+                          tokens_min=('tokens_done', 'min'))
+                     .round(2)
+                     .sort_values('carbon_mean'))
+        print('\nSummary across completed fixed-token episodes:')
+        print(summary.to_string())
+        summary.to_csv(out_dir / 'summary.csv')
+    else:
+        summary = (df.groupby('policy')
+                     .agg(incomplete_runs=('completed', 'size'),
+                          tokens_max=('tokens_done', 'max'),
+                          wall_mean=('wall_h', 'mean'),
+                          carbon_mean_incomplete=('carbon_g', 'mean'))
+                     .round(2))
+        print('\nNo policy completed the requested fixed-token budget.')
+        print(summary.to_string())
+        summary.to_csv(out_dir / 'summary.csv')
 
 
 if __name__ == '__main__':

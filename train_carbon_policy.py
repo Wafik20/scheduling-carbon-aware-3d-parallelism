@@ -2,7 +2,7 @@
 
 Usage:
     python train_carbon_policy.py \
-        --trace /path/to/carbon_week.csv \
+        --trace carbon_trace.csv \
         --tokens 3000000000 \
         --total-timesteps 200000 \
         --out runs/ppo_carbon
@@ -14,13 +14,12 @@ Requires `stable-baselines3` and `gymnasium`. Install with:
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 
 import numpy as np
 
 from carbon_aware_env import (
-    SimConfig, default_config, load_carbon_trace, make_env,
+    default_config, load_carbon_trace, make_env,
     plot_training_curve,
 )
 
