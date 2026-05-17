@@ -27,7 +27,8 @@ import matplotlib.pyplot as plt
 
 from carbon_aware_env import (
     default_config, load_carbon_trace, make_env,
-    rollout_static, rollout_smart_switch, rollout_oracle_dp,
+    rollout_static, rollout_job_shifting_static_fast,
+    rollout_smart_switch, rollout_oracle_dp,
     plot_comparison, CarbonSim, _fastest_strategy_idx, _replay_action_sequence,
 )
 
@@ -77,6 +78,16 @@ def parse_args():
                    help='Comma-separated strategy indices for smart-switch '
                         'dirty-window candidates, e.g. "1,2". Default None '
                         'means auto-select lower-power/slower candidates.')
+    p.add_argument('--include-job-shift', action='store_true',
+                   help='Evaluate temporal job-shifting baseline.')
+    p.add_argument('--shift-window-h', type=float, default=24.0,
+                   help='Maximum allowed delay before starting the job.')
+    p.add_argument('--shift-step-h', type=float, default=1.0,
+                   help='Grid step for searching possible delayed start times.')
+    p.add_argument('--shift-strategy',
+                   choices=['fastest'],
+                   default='fastest',
+                   help='Strategy used after shifting. For now only fastest throughput.')
     p.add_argument('--oracle-token-quantum', type=float, default=5_000_000.0,
                    help='Token discretization for oracle DP baseline')
     p.add_argument('--oracle-switch-cost-mode',
@@ -242,8 +253,10 @@ def main():
     rng = np.random.default_rng(args.seed)
     trace_dur = trace_t[-1] + 3600.0
     baseline_max_hours = args.max_episode_hours * 1.5
+    shift_slack_s = args.shift_window_h * 3600.0 if args.include_job_shift else 0.0
     slack = (
         baseline_max_hours * 3600.0
+        + shift_slack_s
         + 3600.0
         + max(args.forecast_horizon_h, args.smart_lookahead_h) * 3600.0
     )
@@ -254,10 +267,30 @@ def main():
         offsets = np.full(args.n_episodes, args.fixed_offset_h * 3600.0)
 
     records = []
-    detail_rollouts = []  # list of (offset, {label: CarbonSim})
+    episode_metrics = []
+    detail_rollouts = []  # list of (offset, {label: CarbonSim}, {label: wait_h})
+
+    def append_record(ep_i, offset, policy, sim, wait_h=0.0, **extra):
+        wall_h = sim.cursor_s / 3600.0
+        row = {
+            'episode': ep_i,
+            'offset_h': offset / 3600.0,
+            'policy': policy,
+            'carbon_g': sim.total_carbon_g,
+            'energy_kj': sim.total_energy_j / 1000,
+            'wall_h': wall_h,
+            'wait_h': wait_h,
+            'completion_delay_h': wait_h + wall_h,
+            'reshards': sim.reshard_count,
+            'tokens_done': sim.tokens_completed,
+            'completed': sim.tokens_completed >= args.tokens - 1e-6,
+        }
+        row.update(extra)
+        records.append(row)
 
     for ep_i, offset in enumerate(offsets):
         episode_sims = {}
+        episode_wait_h = {}
 
         # ----- RL policy -----
         rl_sim = None
@@ -270,15 +303,7 @@ def main():
                 done = terminated or truncated
             rl_sim = env.sim
             episode_sims['RL'] = rl_sim
-            records.append({
-                'episode': ep_i, 'offset_h': offset / 3600.0, 'policy': 'RL',
-                'carbon_g': rl_sim.total_carbon_g,
-                'energy_kj': rl_sim.total_energy_j / 1000,
-                'wall_h': rl_sim.cursor_s / 3600.0,
-                'reshards': rl_sim.reshard_count,
-                'tokens_done': rl_sim.tokens_completed,
-                'completed': rl_sim.tokens_completed >= args.tokens - 1e-6,
-            })
+            append_record(ep_i, offset, 'RL', rl_sim)
 
         # ----- Static baselines (one per strategy) -----
         for i, s in enumerate(cfg.strategies):
@@ -288,15 +313,36 @@ def main():
                                  wrap_trace=args.wrap_trace)
             label = f"static({s['tp']},{s['pp']})"
             episode_sims[label] = sim
-            records.append({
-                'episode': ep_i, 'offset_h': offset / 3600.0, 'policy': label,
-                'carbon_g': sim.total_carbon_g,
-                'energy_kj': sim.total_energy_j / 1000,
-                'wall_h': sim.cursor_s / 3600.0,
-                'reshards': sim.reshard_count,
-                'tokens_done': sim.tokens_completed,
-                'completed': sim.tokens_completed >= args.tokens - 1e-6,
-            })
+            append_record(ep_i, offset, label, sim)
+
+        # ----- Temporal job-shifting baseline -----
+        sim_shift = None
+        delay_s = None
+        shift_label = None
+        if args.include_job_shift:
+            sim_shift, delay_s, shift_idx = rollout_job_shifting_static_fast(
+                cfg,
+                trace_t,
+                trace_ci,
+                float(offset),
+                shift_window_h=args.shift_window_h,
+                shift_step_h=args.shift_step_h,
+                max_hours=args.max_episode_hours,
+                wrap_trace=args.wrap_trace,
+            )
+
+            shift_label = f'job-shift-fast({args.shift_window_h:g}h)'
+            wait_h = delay_s / 3600.0
+            episode_sims[shift_label] = sim_shift
+            episode_wait_h[shift_label] = wait_h
+            append_record(
+                ep_i,
+                offset,
+                shift_label,
+                sim_shift,
+                wait_h=wait_h,
+                shift_strategy_idx=shift_idx,
+            )
 
         sim_smart = None
         sim_oracle = None
@@ -349,15 +395,7 @@ def main():
                 print('smart replay carbon:', smart_replay.total_carbon_g)
                 print('smart replay wall_h:', smart_replay.cursor_s / 3600.0)
                 print('smart replay reshards:', smart_replay.reshard_count)
-            records.append({
-                'episode': ep_i, 'offset_h': offset / 3600.0, 'policy': label,
-                'carbon_g': sim_smart.total_carbon_g,
-                'energy_kj': sim_smart.total_energy_j / 1000,
-                'wall_h': sim_smart.cursor_s / 3600.0,
-                'reshards': sim_smart.reshard_count,
-                'tokens_done': sim_smart.tokens_completed,
-                'completed': sim_smart.tokens_completed >= args.tokens - 1e-6,
-            })
+            append_record(ep_i, offset, label, sim_smart)
 
             # ----- Oracle DP baseline -----
             sim_oracle = rollout_oracle_dp(
@@ -376,18 +414,10 @@ def main():
             )
             label = 'oracle-dp'
             episode_sims[label] = sim_oracle
-            records.append({
-                'episode': ep_i, 'offset_h': offset / 3600.0, 'policy': label,
-                'carbon_g': sim_oracle.total_carbon_g,
-                'energy_kj': sim_oracle.total_energy_j / 1000,
-                'wall_h': sim_oracle.cursor_s / 3600.0,
-                'reshards': sim_oracle.reshard_count,
-                'tokens_done': sim_oracle.tokens_completed,
-                'completed': sim_oracle.tokens_completed >= args.tokens - 1e-6,
-            })
+            append_record(ep_i, offset, label, sim_oracle)
 
         if ep_i < args.n_detail_rollouts:
-            detail_rollouts.append((offset, episode_sims))
+            detail_rollouts.append((offset, episode_sims, dict(episode_wait_h)))
 
         static_sims = [
             s for k, s in episode_sims.items()
@@ -435,6 +465,14 @@ def main():
             if dynamic_scheduling_applicable
             else float('inf')
         )
+        job_shift_carbon = float('inf')
+        job_shift_wait_h = float('nan')
+        job_shift_completion_delay_h = float('nan')
+        if args.include_job_shift and sim_shift is not None:
+            job_shift_wait_h = delay_s / 3600.0
+            job_shift_completion_delay_h = job_shift_wait_h + sim_shift.cursor_s / 3600.0
+            if sim_shift.tokens_completed >= args.tokens - 1e-6:
+                job_shift_carbon = sim_shift.total_carbon_g
         available = []
         if np.isfinite(best_completed_static_carbon):
             available.append(best_completed_static_carbon)
@@ -442,6 +480,8 @@ def main():
             available.append(smart_carbon)
         if rl_carbon is not None and np.isfinite(rl_carbon):
             available.append(rl_carbon)
+        # Job shifting has a different feasible set because it can delay the
+        # start time. Do not include it in the oracle-DP invariant.
         available_best = min(available) if available else float('inf')
         if dynamic_scheduling_applicable and args.debug_oracle:
             print('[oracle debug] comparison')
@@ -479,6 +519,47 @@ def main():
                     'oracle-dp is worse than a completed static/smart schedule'
                 )
 
+        def savings_pct(base_carbon, policy_carbon):
+            if not (np.isfinite(base_carbon) and np.isfinite(policy_carbon)):
+                return float('nan')
+            return 100.0 * (base_carbon - policy_carbon) / base_carbon
+
+        oracle_metric_carbon = float('nan')
+        if (dynamic_scheduling_applicable and sim_oracle is not None
+                and sim_oracle.tokens_completed >= args.tokens - 1e-6):
+            oracle_metric_carbon = sim_oracle.total_carbon_g
+        smart_metric_carbon = smart_carbon if np.isfinite(smart_carbon) else float('nan')
+        best_static_metric_carbon = (
+            best_completed_static_carbon
+            if np.isfinite(best_completed_static_carbon)
+            else float('nan')
+        )
+        job_shift_metric_carbon = (
+            job_shift_carbon if np.isfinite(job_shift_carbon) else float('nan')
+        )
+        episode_metrics.append({
+            'episode': ep_i,
+            'offset_h': offset / 3600.0,
+            'best_static_carbon': best_static_metric_carbon,
+            'job_shift_fast_carbon': job_shift_metric_carbon,
+            'smart_switch_carbon': smart_metric_carbon,
+            'oracle_dp_carbon': oracle_metric_carbon,
+            'shift_savings_pct': savings_pct(
+                best_static_metric_carbon,
+                job_shift_metric_carbon,
+            ),
+            'oracle_savings_pct': savings_pct(
+                best_static_metric_carbon,
+                oracle_metric_carbon,
+            ),
+            'smart_savings_pct': savings_pct(
+                best_static_metric_carbon,
+                smart_metric_carbon,
+            ),
+            'job_shift_wait_h': job_shift_wait_h,
+            'job_shift_completion_delay_h': job_shift_completion_delay_h,
+        })
+
         msg = (
             f'episode {ep_i+1:>2}/{args.n_episodes} '
             f'offset={offset/3600.0:7.2f}h  '
@@ -488,6 +569,11 @@ def main():
         msg += (
             f'best-static{best_static_note}={best_static_carbon:7.1f}g  '
         )
+        if args.include_job_shift and sim_shift is not None:
+            msg += (
+                f'shift={sim_shift.total_carbon_g:7.1f}g  '
+                f'wait={delay_s/3600.0:5.1f}h  '
+            )
         if dynamic_scheduling_applicable:
             msg += (
                 f'smart={sim_smart.total_carbon_g:7.1f}g  '
@@ -503,6 +589,10 @@ def main():
     df = pd.DataFrame(records)
     df.to_csv(out_dir / 'results.csv', index=False)
     print(f'\nSaved per-episode results to {out_dir / "results.csv"}')
+    episode_metrics_df = pd.DataFrame(episode_metrics)
+    if len(episode_metrics_df):
+        episode_metrics_df.to_csv(out_dir / 'episode_metrics.csv', index=False)
+        print(f'Saved paired episode metrics to {out_dir / "episode_metrics.csv"}')
     completed_df = df[df['completed']].copy()
     incomplete = df[~df['completed']].copy()
     if len(incomplete):
@@ -524,7 +614,10 @@ def main():
         carbon_plot_df.loc[carbon_plot_df['policy'] == p, 'carbon_g'].values
         for p in carbon_policies
     ]
-    walls_per_policy = [df.loc[df['policy'] == p, 'wall_h'].values for p in policies]
+    completion_per_policy = [
+        df.loc[df['policy'] == p, 'completion_delay_h'].values
+        for p in policies
+    ]
 
     bp = ax_c.boxplot(carbons_per_policy, labels=carbon_policies, patch_artist=True,
                        showfliers=False)
@@ -542,16 +635,16 @@ def main():
     ax_c.grid(True, alpha=0.3, axis='y')
     plt.setp(ax_c.get_xticklabels(), rotation=25, ha='right')
 
-    bp2 = ax_w.boxplot(walls_per_policy, labels=policies, patch_artist=True,
+    bp2 = ax_w.boxplot(completion_per_policy, labels=policies, patch_artist=True,
                         showfliers=False)
     for patch, color in zip(bp2['boxes'], plt.cm.tab10(np.linspace(0, 1, len(policies)))):
         patch.set_facecolor(color)
         patch.set_alpha(0.4)
-    for i, vals in enumerate(walls_per_policy):
+    for i, vals in enumerate(completion_per_policy):
         x = np.random.normal(i + 1, 0.05, size=len(vals))
         ax_w.scatter(x, vals, alpha=0.6, s=18, color='k')
-    ax_w.set_ylabel('Wall time (hours)')
-    ax_w.set_title('Wall time')
+    ax_w.set_ylabel('Completion delay (hours)')
+    ax_w.set_title('Completion delay')
     ax_w.grid(True, alpha=0.3, axis='y')
     plt.setp(ax_w.get_xticklabels(), rotation=25, ha='right')
 
@@ -561,7 +654,7 @@ def main():
     print(f'Saved aggregate plot to {out_dir / "aggregate.png"}')
 
     # ---- Per-episode detail plots ----
-    for offset, episode_sims in detail_rollouts:
+    for offset, episode_sims, episode_wait_h in detail_rollouts:
         # Drop non-best static rollouts to keep the figure readable.
         static_labels = [k for k in episode_sims if k.startswith('static')]
         completed_static_labels = [
@@ -578,6 +671,14 @@ def main():
         smart_plot_label = f'smart-switch({args.smart_lookahead_h}h)'
         if smart_plot_label in episode_sims:
             keep[smart_plot_label] = episode_sims[smart_plot_label]
+        if args.include_job_shift:
+            shift_plot_label = f'job-shift-fast({args.shift_window_h:g}h)'
+            if shift_plot_label in episode_sims:
+                wait_h = episode_wait_h.get(shift_plot_label, 0.0)
+                keep[
+                    f'job-shift-fast({args.shift_window_h:g}h, '
+                    f'wait={wait_h:.1f}h)'
+                ] = episode_sims[shift_plot_label]
         if 'oracle-dp' in episode_sims:
             keep['oracle-dp'] = episode_sims['oracle-dp']
         if include_rl_eval:
@@ -601,6 +702,9 @@ def main():
                           carbon_min=('carbon_g', 'min'),
                           carbon_max=('carbon_g', 'max'),
                           wall_mean=('wall_h', 'mean'),
+                          wait_mean=('wait_h', 'mean'),
+                          wait_median=('wait_h', 'median'),
+                          completion_delay_mean=('completion_delay_h', 'mean'),
                           reshards_med=('reshards', 'median'),
                           tokens_min=('tokens_done', 'min'))
                      .round(2)
@@ -613,11 +717,61 @@ def main():
                      .agg(incomplete_runs=('completed', 'size'),
                           tokens_max=('tokens_done', 'max'),
                           wall_mean=('wall_h', 'mean'),
+                          wait_mean=('wait_h', 'mean'),
+                          completion_delay_mean=('completion_delay_h', 'mean'),
                           carbon_mean_incomplete=('carbon_g', 'mean'))
                      .round(2))
         print('\nNo policy completed the requested fixed-token budget.')
         print(summary.to_string())
         summary.to_csv(out_dir / 'summary.csv')
+
+    if len(episode_metrics_df):
+        def comparison_policy_rows(policy):
+            if policy == 'job-shift-fast':
+                mask = completed_df['policy'].str.startswith('job-shift-fast')
+            elif policy == 'smart-switch':
+                mask = completed_df['policy'].str.startswith('smart-switch')
+            else:
+                mask = completed_df['policy'] == policy
+            return completed_df.loc[mask]
+
+        comparison_specs = [
+            ('job-shift-fast', 'job_shift_fast_carbon', 'shift_savings_pct'),
+            ('smart-switch', 'smart_switch_carbon', 'smart_savings_pct'),
+            ('oracle-dp', 'oracle_dp_carbon', 'oracle_savings_pct'),
+        ]
+        comparison_rows = []
+        for policy, carbon_col, savings_col in comparison_specs:
+            valid = (
+                episode_metrics_df['best_static_carbon'].notna()
+                & episode_metrics_df[carbon_col].notna()
+            )
+            if not valid.any():
+                continue
+            subset = episode_metrics_df.loc[valid]
+            row = {
+                'policy': policy,
+                'paired_runs': int(valid.sum()),
+                'best_static_carbon_mean': subset['best_static_carbon'].mean(),
+                'policy_carbon_mean': subset[carbon_col].mean(),
+                'savings_pct_mean': subset[savings_col].mean(),
+                'savings_pct_median': subset[savings_col].median(),
+            }
+            policy_rows = comparison_policy_rows(policy)
+            policy_rows = policy_rows[policy_rows['episode'].isin(subset['episode'])]
+            if len(policy_rows):
+                row.update({
+                    'mean_wait_h': policy_rows['wait_h'].mean(),
+                    'median_wait_h': policy_rows['wait_h'].median(),
+                    'mean_completion_delay_h': policy_rows['completion_delay_h'].mean(),
+                })
+            comparison_rows.append(row)
+
+        if comparison_rows:
+            comparison_df = pd.DataFrame(comparison_rows).round(2)
+            print('\nPaired savings versus best completed static:')
+            print(comparison_df.to_string(index=False))
+            comparison_df.to_csv(out_dir / 'savings_summary.csv', index=False)
 
 
 if __name__ == '__main__':

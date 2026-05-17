@@ -588,6 +588,77 @@ def rollout_static(sim_cfg: SimConfig,
     return sim
 
 
+def rollout_job_shifting_static_fast(
+    sim_cfg: SimConfig,
+    trace_t: np.ndarray,
+    trace_ci: np.ndarray,
+    arrival_offset_s: float,
+    shift_window_h: float,
+    shift_step_h: float,
+    max_hours: float,
+    wrap_trace: bool = False,
+) -> tuple[CarbonSim, float, int]:
+    """Delay the job start, then run the highest-throughput static strategy.
+
+    The waiting period is intentionally not simulated as cluster activity:
+    returned carbon and energy include only the training run. The selected
+    delay is returned separately so evaluators can report completion delay.
+    """
+    if shift_window_h < 0:
+        raise ValueError(f'shift_window_h must be non-negative, got {shift_window_h}')
+    if shift_step_h <= 0:
+        raise ValueError(f'shift_step_h must be positive, got {shift_step_h}')
+
+    fastest_idx = fastest_strategy_idx(sim_cfg)
+
+    best_sim = None
+    best_delay_s = None
+    best_carbon = float('inf')
+
+    shift_window_s = shift_window_h * 3600.0
+    shift_step_s = shift_step_h * 3600.0
+    n_steps = int(shift_window_s // shift_step_s)
+
+    for j in range(n_steps + 1):
+        delay_s = j * shift_step_s
+        start_offset_s = arrival_offset_s + delay_s
+
+        try:
+            sim = rollout_static(
+                sim_cfg,
+                trace_t,
+                trace_ci,
+                start_offset_s,
+                strategy_idx=fastest_idx,
+                max_hours=max_hours,
+                wrap_trace=wrap_trace,
+            )
+        except TraceOverrunError:
+            continue
+
+        if not sim.done():
+            continue
+
+        if sim.total_carbon_g < best_carbon:
+            best_carbon = sim.total_carbon_g
+            best_sim = sim
+            best_delay_s = delay_s
+
+    if best_sim is None:
+        best_delay_s = 0.0
+        best_sim = rollout_static(
+            sim_cfg,
+            trace_t,
+            trace_ci,
+            arrival_offset_s,
+            strategy_idx=fastest_idx,
+            max_hours=max_hours,
+            wrap_trace=wrap_trace,
+        )
+
+    return best_sim, float(best_delay_s), fastest_idx
+
+
 def _future_clean_ci(sim: CarbonSim,
                      lookahead_h: int,
                      catchup_time_s: float) -> float:
@@ -613,6 +684,14 @@ def _switch_cost_g(sim: CarbonSim,
     strategy = sim.cfg.strategies[target_strategy_idx]
     switch_s = strategy.get('reshard_wall_time_s', sim.cfg.switch_time_s)
     return sim.cfg.idle_cluster_w * switch_s * ci_g_per_kwh / 3.6e6
+
+
+def fastest_strategy_idx(sim_cfg: SimConfig) -> int:
+    """Return the strategy index with highest measured throughput."""
+    return max(
+        range(len(sim_cfg.strategies)),
+        key=lambda i: float(sim_cfg.strategies[i]['throughput_tok_s']),
+    )
 
 
 def _fastest_strategy_idx(sim_cfg: SimConfig) -> int:
