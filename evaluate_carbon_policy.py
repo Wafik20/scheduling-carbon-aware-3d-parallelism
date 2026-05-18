@@ -28,14 +28,15 @@ import matplotlib.pyplot as plt
 from carbon_aware_env import (
     default_config, load_carbon_trace, make_env,
     rollout_static, rollout_job_shifting_static_fast,
-    rollout_smart_switch, rollout_oracle_dp,
+    rollout_smart_switch, rollout_oracle_dp, rollout_oracle_shift_switch,
     plot_comparison, CarbonSim, _fastest_strategy_idx, _replay_action_sequence,
 )
 
 
 GREEDY_LABEL = 'Greedy'
-BEST_CASE_SWITCHING_LABEL = 'Best-Case Switching'
+BEST_CASE_SWITCHING_LABEL = 'Fixed Start-Time dynamic parallelism'
 JOB_SHIFT_LABEL = 'Job Shifting'
+ORACLE_SHIFT_SWITCH_LABEL = 'job shifting + dynamic parallelism'
 
 
 def parse_args():
@@ -84,7 +85,9 @@ def parse_args():
                         'dirty-window candidates, e.g. "1,2". Default None '
                         'means auto-select lower-power/slower candidates.')
     p.add_argument('--include-job-shift', action='store_true',
-                   help='Evaluate temporal job-shifting baseline.')
+                   help='Evaluate temporal job-shifting baseline. When dynamic '
+                        'scheduling is applicable, also evaluate '
+                        'job shifting + dynamic parallelism.')
     p.add_argument('--shift-window-h', type=float, default=24.0,
                    help='Maximum allowed delay before starting the job.')
     p.add_argument('--shift-step-h', type=float, default=1.0,
@@ -94,17 +97,26 @@ def parse_args():
                    default='fastest',
                    help='Strategy used after shifting. For now only fastest throughput.')
     p.add_argument('--oracle-token-quantum', type=float, default=5_000_000.0,
-                   help='Token discretization for Best-Case Switching baseline')
+                   help='Token discretization for Fixed Start-Time dynamic '
+                        'parallelism baseline')
     p.add_argument('--oracle-switch-cost-mode',
                    choices=['sim', 'fixed'],
                    default='sim',
-                   help='Switch-cost model for Best-Case Switching baseline')
+                   help='Switch-cost model for Fixed Start-Time dynamic '
+                        'parallelism baseline')
     p.add_argument('--debug-oracle', action='store_true',
-                   help='Print Best-Case Switching internals and assert if it loses '
-                        'to completed static/smart schedules')
+                   help='Print Fixed Start-Time dynamic parallelism internals '
+                        'and assert if it loses to completed static/smart schedules')
+    p.add_argument('--debug-shift-switch', action='store_true',
+                   help='Dump candidate-start diagnostics for job shifting + '
+                        'dynamic parallelism and Job Shifting.')
+    p.add_argument('--debug-shift-switch-episode', type=int, default=None,
+                   help='1-based episode number for --debug-shift-switch. '
+                        'If omitted, dumps every episode.')
     p.add_argument('--fixed-offset-h', type=float, default=None,
                    help='Evaluate every episode at this exact trace offset '
-                        '(hours), useful for reproducing Best-Case Switching bugs')
+                        '(hours), useful for reproducing Fixed Start-Time '
+                        'dynamic parallelism bugs')
     p.add_argument('--n-detail-rollouts', type=int, default=3,
                    help='How many per-episode detail plots to save')
     p.add_argument('--seed', type=int, default=0)
@@ -184,13 +196,13 @@ def main():
         )
         print(
             f"[skip] {model_label}: only {len(cfg.strategies)} feasible strategy. "
-            "Skipping Best-Case Switching/Greedy savings comparison."
+            "Skipping Fixed Start-Time dynamic parallelism/Greedy savings comparison."
         )
         print(
             "Only one feasible strategy remained for this model size on the "
             "target hardware, so dynamic scheduling is not applicable. We "
             "report this as a feasibility-boundary case rather than an "
-            "Best-Case Switching/Greedy win."
+            "Fixed Start-Time dynamic parallelism/Greedy win."
         )
     include_rl_eval = args.include_rl and dynamic_scheduling_applicable
     if args.include_rl and not include_rl_eval:
@@ -273,9 +285,21 @@ def main():
 
     records = []
     detail_rollouts = []  # list of (offset, {label: CarbonSim}, {label: wait_h})
+    synergy_records = []
+    shift_switch_diagnostic_records = []
 
     def append_record(ep_i, offset, policy, sim, wait_h=0.0, **extra):
         wall_h = sim.cursor_s / 3600.0
+        completion_delay_h = wait_h + wall_h
+        strategy_sequence = [
+            int(rec.strategy_idx)
+            for rec in sim.history
+        ]
+        completed = sim.tokens_completed >= args.tokens - 1e-6
+        feasible = (
+            completed
+            and completion_delay_h <= args.max_episode_hours + 1e-9
+        )
         row = {
             'episode': ep_i,
             'offset_h': offset / 3600.0,
@@ -284,17 +308,229 @@ def main():
             'energy_kj': sim.total_energy_j / 1000,
             'wall_h': wall_h,
             'wait_h': wait_h,
-            'completion_delay_h': wait_h + wall_h,
+            'completion_delay_h': completion_delay_h,
+            'start_offset_h': offset / 3600.0 + wait_h,
             'reshards': sim.reshard_count,
             'tokens_done': sim.tokens_completed,
-            'completed': sim.tokens_completed >= args.tokens - 1e-6,
+            'completed': completed,
+            'feasible': feasible,
+            'strategy_sequence': json.dumps(strategy_sequence, separators=(',', ':')),
         }
         row.update(extra)
         records.append(row)
 
+    def deadline_feasible(sim, wait_h=0.0):
+        completion_delay_h = wait_h + sim.cursor_s / 3600.0
+        return (
+            sim.tokens_completed >= args.tokens - 1e-6
+            and completion_delay_h <= args.max_episode_hours + 1e-9
+        )
+
+    def _sequence_from_sim(sim):
+        return [int(rec.strategy_idx) for rec in sim.history]
+
+    def _is_wait_on_grid(wait_s, limit_s, step_s, inclusive_limit=True):
+        tol_s = 1e-6
+        if wait_s < -tol_s:
+            return False
+        if inclusive_limit:
+            if wait_s > limit_s + tol_s:
+                return False
+        elif wait_s >= limit_s - tol_s:
+            return False
+        if step_s <= 0:
+            return False
+        j = round(wait_s / step_s)
+        return abs(wait_s - j * step_s) <= tol_s
+
+    def build_shift_switch_candidate_table(offset, shift_strategy_idx):
+        rows = []
+        decision_interval_s = 3600.0
+        deadline_s = args.max_episode_hours * 3600.0
+        shift_window_s = args.shift_window_h * 3600.0
+        shift_step_s = args.shift_step_h * 3600.0
+
+        wait_keys = set()
+        n_shift_steps = int(shift_window_s // shift_step_s)
+        for j in range(n_shift_steps + 1):
+            wait_keys.add(int(round(j * shift_step_s * 1_000_000)))
+        n_oracle_steps = int(np.ceil(deadline_s / decision_interval_s))
+        for j in range(n_oracle_steps):
+            wait_s = j * decision_interval_s
+            if wait_s < deadline_s - 1e-6:
+                wait_keys.add(int(round(wait_s * 1_000_000)))
+
+        for wait_key in sorted(wait_keys):
+            wait_s = wait_key / 1_000_000.0
+            wait_h = wait_s / 3600.0
+            start_offset_s = float(offset) + wait_s
+            remaining_h = (deadline_s - wait_s) / 3600.0
+            job_considered = _is_wait_on_grid(
+                wait_s,
+                shift_window_s,
+                shift_step_s,
+                inclusive_limit=True,
+            )
+            oracle_considered = _is_wait_on_grid(
+                wait_s,
+                deadline_s,
+                decision_interval_s,
+                inclusive_limit=False,
+            )
+
+            row = {
+                'candidate_wait_h': wait_h,
+                'candidate_start_time': start_offset_s / 3600.0,
+                'remaining_horizon_h': remaining_h,
+                'job_shift_considered': job_considered,
+                'oracle_considered': oracle_considered,
+                'job_shift_feasible': False,
+                'job_shift_dynamic_parallelism_feasible': False,
+                'job_shift_carbon_if_feasible': np.nan,
+                'oracle_dp_carbon_if_feasible': np.nan,
+                'oracle_strategy_sequence': '',
+                'oracle_num_reshards': np.nan,
+                'completion_time': np.nan,
+                'job_shift_completion_time_h': np.nan,
+                'oracle_completion_time_h': np.nan,
+                'reason_if_infeasible': '',
+            }
+            reasons = []
+
+            if remaining_h <= 0:
+                if job_considered:
+                    reasons.append('job:no_remaining_horizon')
+                if oracle_considered:
+                    reasons.append('oracle:no_remaining_horizon')
+                row['reason_if_infeasible'] = '; '.join(reasons)
+                rows.append(row)
+                continue
+
+            if job_considered:
+                try:
+                    job_sim = rollout_static(
+                        cfg,
+                        trace_t,
+                        trace_ci,
+                        start_offset_s,
+                        strategy_idx=shift_strategy_idx,
+                        max_hours=remaining_h,
+                        wrap_trace=args.wrap_trace,
+                    )
+                    job_completion_h = wait_h + job_sim.cursor_s / 3600.0
+                    row['job_shift_completion_time_h'] = job_completion_h
+                    job_feasible = (
+                        job_sim.done()
+                        and job_completion_h <= args.max_episode_hours + 1e-9
+                    )
+                    row['job_shift_feasible'] = job_feasible
+                    if job_feasible:
+                        row['job_shift_carbon_if_feasible'] = job_sim.total_carbon_g
+                    elif not job_sim.done():
+                        reasons.append(
+                            f'job:incomplete_tokens={job_sim.tokens_completed:.0f}'
+                        )
+                    else:
+                        reasons.append(f'job:miss_deadline={job_completion_h:.4f}h')
+                except Exception as exc:
+                    reasons.append(f'job:{type(exc).__name__}')
+            else:
+                reasons.append('job:not_considered')
+
+            if oracle_considered:
+                try:
+                    oracle_sim = rollout_oracle_dp(
+                        cfg,
+                        trace_t,
+                        trace_ci,
+                        start_offset_s,
+                        decision_interval_s=decision_interval_s,
+                        max_hours=remaining_h,
+                        token_quantum=args.oracle_token_quantum,
+                        switch_cost_mode=args.oracle_switch_cost_mode,
+                        wrap_trace=args.wrap_trace,
+                        debug=False,
+                    )
+                    oracle_completion_h = wait_h + oracle_sim.cursor_s / 3600.0
+                    oracle_actions = _sequence_from_sim(oracle_sim)
+                    row['oracle_completion_time_h'] = oracle_completion_h
+                    row['oracle_strategy_sequence'] = json.dumps(
+                        oracle_actions,
+                        separators=(',', ':'),
+                    )
+                    row['oracle_num_reshards'] = oracle_sim.reshard_count
+                    oracle_feasible = (
+                        oracle_sim.done()
+                        and oracle_completion_h <= args.max_episode_hours + 1e-9
+                    )
+                    row['job_shift_dynamic_parallelism_feasible'] = oracle_feasible
+                    if oracle_feasible:
+                        row['oracle_dp_carbon_if_feasible'] = oracle_sim.total_carbon_g
+                        row['completion_time'] = oracle_completion_h
+                    elif not oracle_sim.done():
+                        reasons.append(
+                            f'oracle:incomplete_tokens={oracle_sim.tokens_completed:.0f}'
+                        )
+                    else:
+                        reasons.append(
+                            f'oracle:miss_deadline={oracle_completion_h:.4f}h'
+                        )
+                except Exception as exc:
+                    reasons.append(f'oracle:{type(exc).__name__}')
+            else:
+                reasons.append('oracle:not_considered')
+
+            row['reason_if_infeasible'] = '; '.join(reasons)
+            rows.append(row)
+
+        return pd.DataFrame(rows)
+
+    def dump_shift_switch_candidate_table(ep_i, offset, shift_strategy_idx, reason):
+        table = build_shift_switch_candidate_table(offset, shift_strategy_idx)
+        path = out_dir / f'shift_switch_candidates_ep{ep_i + 1}.csv'
+        table.to_csv(path, index=False)
+        shift_strategy = cfg.strategies[shift_strategy_idx]
+        print('\n[job shifting + dynamic parallelism diagnostics]')
+        print('reason:', reason)
+        print('episode:', ep_i + 1)
+        print('offset_h:', offset / 3600.0)
+        print('deadline_h:', args.max_episode_hours)
+        print(
+            'job_shift_strategy:',
+            shift_strategy_idx,
+            (shift_strategy['tp'], shift_strategy['pp']),
+        )
+        print('candidate table:', path)
+        display_cols = [
+            'candidate_wait_h',
+            'candidate_start_time',
+            'remaining_horizon_h',
+            'job_shift_considered',
+            'oracle_considered',
+            'job_shift_feasible',
+            'job_shift_dynamic_parallelism_feasible',
+            'job_shift_carbon_if_feasible',
+            'oracle_dp_carbon_if_feasible',
+            'oracle_strategy_sequence',
+            'oracle_num_reshards',
+            'completion_time',
+            'reason_if_infeasible',
+        ]
+        with pd.option_context(
+            'display.max_rows',
+            None,
+            'display.max_colwidth',
+            96,
+            'display.width',
+            240,
+        ):
+            print(table[display_cols].to_string(index=False))
+        return table
+
     for ep_i, offset in enumerate(offsets):
         episode_sims = {}
         episode_wait_h = {}
+        static_sims_by_idx = {}
 
         # ----- RL policy -----
         rl_sim = None
@@ -316,6 +552,7 @@ def main():
                                  max_hours=args.max_episode_hours * 1.5,
                                  wrap_trace=args.wrap_trace)
             label = f"static({s['tp']},{s['pp']})"
+            static_sims_by_idx[i] = sim
             episode_sims[label] = sim
             append_record(ep_i, offset, label, sim)
 
@@ -333,6 +570,7 @@ def main():
                 shift_step_h=args.shift_step_h,
                 max_hours=args.max_episode_hours,
                 wrap_trace=args.wrap_trace,
+                respect_deadline=True,
             )
 
             shift_label = JOB_SHIFT_LABEL
@@ -350,6 +588,8 @@ def main():
 
         sim_smart = None
         sim_oracle = None
+        sim_joint = None
+        joint_delay_s = None
         if dynamic_scheduling_applicable:
             # ----- Smart-switch baseline -----
             sim_smart = rollout_smart_switch(
@@ -384,7 +624,7 @@ def main():
                     max_hours=args.max_episode_hours * 1.5,
                     wrap_trace=args.wrap_trace,
                 )
-                print('[Best-Case Switching debug] Greedy rollout')
+                print('[Fixed Start-Time dynamic parallelism debug] Greedy rollout')
                 print('Greedy actions:', smart_actions)
                 print(
                     'Greedy strategy tuples:',
@@ -419,6 +659,26 @@ def main():
             label = BEST_CASE_SWITCHING_LABEL
             episode_sims[label] = sim_oracle
             append_record(ep_i, offset, label, sim_oracle)
+
+            # ----- Joint shifting-and-switching oracle -----
+            if args.include_job_shift:
+                sim_joint, joint_delay_s = rollout_oracle_shift_switch(
+                    cfg,
+                    trace_t,
+                    trace_ci,
+                    float(offset),
+                    decision_interval_s=3600.0,
+                    max_episode_hours=args.max_episode_hours,
+                    token_quantum=args.oracle_token_quantum,
+                    switch_cost_mode=args.oracle_switch_cost_mode,
+                    wrap_trace=args.wrap_trace,
+                    debug=args.debug_oracle,
+                )
+                label = ORACLE_SHIFT_SWITCH_LABEL
+                wait_h = joint_delay_s / 3600.0
+                episode_sims[label] = sim_joint
+                episode_wait_h[label] = wait_h
+                append_record(ep_i, offset, label, sim_joint, wait_h=wait_h)
 
         if ep_i < args.n_detail_rollouts:
             detail_rollouts.append((offset, episode_sims, dict(episode_wait_h)))
@@ -480,17 +740,20 @@ def main():
         # start time. Do not include it in the oracle-DP invariant.
         available_best = min(available) if available else float('inf')
         if dynamic_scheduling_applicable and args.debug_oracle:
-            print('[Best-Case Switching debug] comparison')
+            print('[Fixed Start-Time dynamic parallelism debug] comparison')
             print('best_static_carbon:', best_completed_static_carbon)
             print('Greedy_label:', smart_label)
             print('Greedy_carbon:', smart_carbon)
             if include_rl_eval:
                 print('rl_carbon:', rl_carbon)
-            print('Best-Case Switching carbon:', oracle_carbon)
+            print('Fixed Start-Time dynamic parallelism carbon:', oracle_carbon)
         oracle_tolerance_g = 1e-3
         if (dynamic_scheduling_applicable
                 and oracle_carbon > available_best + oracle_tolerance_g):
-            print('\n[BEST-CASE SWITCHING BUG] Best-Case Switching is worse than an available schedule')
+            print(
+                '\n[FIXED START-TIME DYNAMIC PARALLELISM BUG] '
+                'Fixed Start-Time dynamic parallelism is worse than an available schedule'
+            )
             print('episode:', ep_i)
             print('offset_h:', offset / 3600.0)
             print('best_static_carbon:', best_completed_static_carbon)
@@ -498,7 +761,7 @@ def main():
             print('Greedy_carbon:', smart_carbon)
             if include_rl_eval:
                 print('rl_carbon:', rl_carbon)
-            print('Best-Case Switching carbon:', oracle_carbon)
+            print('Fixed Start-Time dynamic parallelism carbon:', oracle_carbon)
 
             for name, sim in episode_sims.items():
                 print(
@@ -512,7 +775,113 @@ def main():
 
             if args.debug_oracle:
                 raise AssertionError(
-                    'Best-Case Switching is worse than a completed static/Greedy schedule'
+                    'Fixed Start-Time dynamic parallelism is worse than a '
+                    'completed static/Greedy schedule'
+                )
+
+        if (args.include_job_shift
+                and dynamic_scheduling_applicable
+                and sim_shift is not None
+                and sim_oracle is not None
+                and sim_joint is not None):
+            feasible_static_sims = [
+                sim for sim in static_sims_by_idx.values()
+                if deadline_feasible(sim)
+            ]
+            c0 = (
+                min(sim.total_carbon_g for sim in feasible_static_sims)
+                if feasible_static_sims else np.nan
+            )
+            shift_wait_h = float(delay_s or 0.0) / 3600.0
+            joint_wait_h = float(joint_delay_s or 0.0) / 3600.0
+            cshift = (
+                sim_shift.total_carbon_g
+                if deadline_feasible(sim_shift, shift_wait_h) else np.nan
+            )
+            cswitch = (
+                sim_oracle.total_carbon_g
+                if deadline_feasible(sim_oracle) else np.nan
+            )
+            cjoint = (
+                sim_joint.total_carbon_g
+                if deadline_feasible(sim_joint, joint_wait_h) else np.nan
+            )
+            synergy = np.nan
+            if np.all(np.isfinite([c0, cshift, cswitch, cjoint])):
+                gshift = c0 - cshift
+                gswitch = c0 - cswitch
+                gjoint = c0 - cjoint
+                synergy = cshift + cswitch - cjoint - c0
+            else:
+                gshift = np.nan
+                gswitch = np.nan
+                gjoint = np.nan
+            synergy_records.append({
+                'episode': ep_i,
+                'offset_h': offset / 3600.0,
+                'C0_static_immediate_g': c0,
+                'Cshift_g': cshift,
+                'Cswitch_g': cswitch,
+                'Cjoint_g': cjoint,
+                'Gshift_g': gshift,
+                'Gswitch_g': gswitch,
+                'Gjoint_g': gjoint,
+                'synergy_g': synergy,
+                'positive_synergy': (
+                    bool(synergy > 1e-6) if np.isfinite(synergy) else np.nan
+                ),
+            })
+
+            shift_feasible = deadline_feasible(sim_shift, shift_wait_h)
+            joint_feasible = deadline_feasible(sim_joint, joint_wait_h)
+            shift_switch_diagnostic_records.append({
+                'episode': ep_i,
+                'offset_h': offset / 3600.0,
+                'job_shifting_wait_h': shift_wait_h,
+                'job_shifting_carbon_g': sim_shift.total_carbon_g,
+                'job_shifting_feasible': shift_feasible,
+                'job_shifting_strategy_sequence': json.dumps(
+                    _sequence_from_sim(sim_shift),
+                    separators=(',', ':'),
+                ),
+                'job_shift_dynamic_parallelism_wait_h': joint_wait_h,
+                'job_shift_dynamic_parallelism_carbon_g': sim_joint.total_carbon_g,
+                'job_shift_dynamic_parallelism_feasible': joint_feasible,
+                'job_shift_dynamic_parallelism_num_reshards': sim_joint.reshard_count,
+                'job_shift_dynamic_parallelism_strategy_sequence': json.dumps(
+                    _sequence_from_sim(sim_joint),
+                    separators=(',', ':'),
+                ),
+            })
+
+            should_dump_shift_switch = (
+                args.debug_shift_switch
+                and (
+                    args.debug_shift_switch_episode is None
+                    or args.debug_shift_switch_episode == ep_i + 1
+                )
+            )
+            if should_dump_shift_switch:
+                dump_shift_switch_candidate_table(
+                    ep_i,
+                    offset,
+                    shift_idx,
+                    'requested debug dump',
+                )
+
+            if shift_feasible and (
+                    not joint_feasible
+                    or sim_joint.total_carbon_g > sim_shift.total_carbon_g + 1e-6):
+                dump_shift_switch_candidate_table(
+                    ep_i,
+                    offset,
+                    shift_idx,
+                    'invariant failure: job shifting + dynamic parallelism '
+                    'worse than Job Shifting',
+                )
+                raise AssertionError(
+                    'job shifting + dynamic parallelism must be no worse than '
+                    'deadline-feasible Job Shifting'
                 )
 
         msg = (
@@ -534,6 +903,12 @@ def main():
                 f'{GREEDY_LABEL}={sim_smart.total_carbon_g:7.1f}g  '
                 f'{BEST_CASE_SWITCHING_LABEL}={sim_oracle.total_carbon_g:7.1f}g'
             )
+            if args.include_job_shift and sim_joint is not None:
+                msg += (
+                    f'  {ORACLE_SHIFT_SWITCH_LABEL}='
+                    f'{sim_joint.total_carbon_g:7.1f}g  '
+                    f'wait={float(joint_delay_s or 0.0)/3600.0:5.1f}h'
+                )
         else:
             msg += 'dynamic=not-applicable'
         if include_rl_eval and rl_sim is not None:
@@ -544,6 +919,34 @@ def main():
     df = pd.DataFrame(records)
     df.to_csv(out_dir / 'results.csv', index=False)
     print(f'\nSaved per-episode results to {out_dir / "results.csv"}')
+    if synergy_records:
+        synergy_df = pd.DataFrame(synergy_records)
+        synergy_df.to_csv(out_dir / 'superadditivity.csv', index=False)
+        valid_synergy = synergy_df[np.isfinite(synergy_df['synergy_g'])].copy()
+        print(f'Saved super-additivity metrics to {out_dir / "superadditivity.csv"}')
+        if len(valid_synergy):
+            print(
+                'Super-additivity synergy: '
+                f'mean={valid_synergy["synergy_g"].mean():.2f}g, '
+                f'median={valid_synergy["synergy_g"].median():.2f}g, '
+                f'positive episodes={int(valid_synergy["positive_synergy"].sum())}'
+                f'/{len(valid_synergy)}'
+            )
+        else:
+            print(
+                'Super-additivity metrics were written, but no episode had all '
+                'four deadline-feasible components.'
+            )
+    if shift_switch_diagnostic_records:
+        shift_switch_diag_df = pd.DataFrame(shift_switch_diagnostic_records)
+        shift_switch_diag_df.to_csv(
+            out_dir / 'shift_switch_diagnostics.csv',
+            index=False,
+        )
+        print(
+            f'Saved shift/switch diagnostics to '
+            f'{out_dir / "shift_switch_diagnostics.csv"}'
+        )
     completed_df = df[df['completed']].copy()
     incomplete = df[~df['completed']].copy()
     if len(incomplete):
@@ -631,6 +1034,11 @@ def main():
                 ] = episode_sims[shift_plot_label]
         if BEST_CASE_SWITCHING_LABEL in episode_sims:
             keep[BEST_CASE_SWITCHING_LABEL] = episode_sims[BEST_CASE_SWITCHING_LABEL]
+        if ORACLE_SHIFT_SWITCH_LABEL in episode_sims:
+            wait_h = episode_wait_h.get(ORACLE_SHIFT_SWITCH_LABEL, 0.0)
+            keep[
+                f'{ORACLE_SHIFT_SWITCH_LABEL} (wait={wait_h:.1f}h)'
+            ] = episode_sims[ORACLE_SHIFT_SWITCH_LABEL]
         if include_rl_eval:
             keep = {
                 f'RL ({algo.upper()})': episode_sims['RL'],

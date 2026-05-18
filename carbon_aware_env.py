@@ -597,12 +597,15 @@ def rollout_job_shifting_static_fast(
     shift_step_h: float,
     max_hours: float,
     wrap_trace: bool = False,
+    respect_deadline: bool = False,
 ) -> tuple[CarbonSim, float, int]:
     """Delay the job start, then run the highest-throughput static strategy.
 
     The waiting period is intentionally not simulated as cluster activity:
     returned carbon and energy include only the training run. The selected
-    delay is returned separately so evaluators can report completion delay.
+    delay is returned separately so evaluators can report completion delay. If
+    `respect_deadline` is true, `max_hours` is treated as an arrival-relative
+    deadline and each delayed start receives only its remaining horizon.
     """
     if shift_window_h < 0:
         raise ValueError(f'shift_window_h must be non-negative, got {shift_window_h}')
@@ -622,6 +625,11 @@ def rollout_job_shifting_static_fast(
     for j in range(n_steps + 1):
         delay_s = j * shift_step_s
         start_offset_s = arrival_offset_s + delay_s
+        horizon_h = max_hours
+        if respect_deadline:
+            horizon_h = max_hours - delay_s / 3600.0
+            if horizon_h <= 0:
+                continue
 
         try:
             sim = rollout_static(
@@ -630,13 +638,15 @@ def rollout_job_shifting_static_fast(
                 trace_ci,
                 start_offset_s,
                 strategy_idx=fastest_idx,
-                max_hours=max_hours,
+                max_hours=horizon_h,
                 wrap_trace=wrap_trace,
             )
         except TraceOverrunError:
             continue
 
         if not sim.done():
+            continue
+        if respect_deadline and delay_s + sim.cursor_s > max_hours * 3600.0 + 1e-6:
             continue
 
         if sim.total_carbon_g < best_carbon:
@@ -1346,6 +1356,115 @@ def rollout_oracle_dp(sim_cfg: SimConfig,
         print('[oracle debug] returned oracle carbon:', best_sim.total_carbon_g)
 
     return best_sim
+
+
+def rollout_oracle_shift_switch(
+    sim_cfg: SimConfig,
+    trace_t: np.ndarray,
+    trace_ci: np.ndarray,
+    arrival_offset_s: float,
+    decision_interval_s: float = 3600.0,
+    max_episode_hours: float = 72.0,
+    token_quantum: float = 5_000_000.0,
+    switch_cost_mode: str = 'sim',
+    wrap_trace: bool = False,
+    debug: bool = False,
+) -> tuple[CarbonSim, float]:
+    """Oracle that jointly chooses start time and switching schedule.
+
+    This wraps the fixed-start DP oracle in an hourly outer loop. For each
+    candidate start time, the fixed-start oracle receives the remaining time
+    to the original deadline. The returned simulator is already an exact
+    CarbonSim replay; the wrapper only selects the best feasible replay.
+
+    Returns `(sim, wait_s)`, where `wait_s` is the delay from arrival to the
+    selected start. If no candidate completes before the deadline, the best
+    infeasible replay found is returned with its wait so callers can report it.
+    """
+    if decision_interval_s <= 0:
+        raise ValueError(
+            f'decision_interval_s must be positive, got {decision_interval_s}'
+        )
+    if max_episode_hours <= 0:
+        raise ValueError(
+            f'max_episode_hours must be positive, got {max_episode_hours}'
+        )
+
+    deadline_s = float(arrival_offset_s) + float(max_episode_hours) * 3600.0
+    total_horizon_s = deadline_s - float(arrival_offset_s)
+    n_candidates = int(math.ceil(total_horizon_s / decision_interval_s))
+    deadline_tol_s = 1e-6
+
+    best_sim: CarbonSim | None = None
+    best_wait_s = 0.0
+    best_infeasible_sim: CarbonSim | None = None
+    best_infeasible_wait_s = 0.0
+    best_infeasible_key: tuple[float, float] | None = None
+
+    for j in range(n_candidates):
+        start_offset_s = float(arrival_offset_s) + j * decision_interval_s
+        if start_offset_s >= deadline_s - deadline_tol_s:
+            break
+
+        horizon_h = (deadline_s - start_offset_s) / 3600.0
+        if horizon_h <= 0:
+            continue
+
+        try:
+            sim = rollout_oracle_dp(
+                sim_cfg,
+                trace_t,
+                trace_ci,
+                start_offset_s,
+                decision_interval_s=decision_interval_s,
+                max_hours=horizon_h,
+                token_quantum=token_quantum,
+                switch_cost_mode=switch_cost_mode,
+                wrap_trace=wrap_trace,
+                debug=debug,
+            )
+        except TraceOverrunError:
+            continue
+
+        wait_s = start_offset_s - float(arrival_offset_s)
+        completion_delay_s = wait_s + sim.cursor_s
+        feasible = (
+            sim.done()
+            and completion_delay_s <= total_horizon_s + deadline_tol_s
+        )
+
+        if feasible:
+            if best_sim is None or sim.total_carbon_g < best_sim.total_carbon_g:
+                best_sim = sim
+                best_wait_s = wait_s
+            continue
+
+        infeasible_key = (
+            float(sim.tokens_completed),
+            -float(sim.total_carbon_g),
+        )
+        if best_infeasible_key is None or infeasible_key > best_infeasible_key:
+            best_infeasible_sim = sim
+            best_infeasible_wait_s = wait_s
+            best_infeasible_key = infeasible_key
+
+    if best_sim is not None:
+        return best_sim, float(best_wait_s)
+
+    if best_infeasible_sim is not None:
+        return best_infeasible_sim, float(best_infeasible_wait_s)
+
+    fallback_sim = rollout_static(
+        sim_cfg,
+        trace_t,
+        trace_ci,
+        float(arrival_offset_s),
+        strategy_idx=_fastest_strategy_idx(sim_cfg),
+        decision_interval_s=decision_interval_s,
+        max_hours=max_episode_hours,
+        wrap_trace=wrap_trace,
+    )
+    return fallback_sim, 0.0
 
 
 def rollout_policy(env, policy_fn: Callable[[np.ndarray], int]) -> dict:
