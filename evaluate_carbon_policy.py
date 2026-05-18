@@ -34,9 +34,9 @@ from carbon_aware_env import (
 
 
 GREEDY_LABEL = 'Greedy'
-BEST_CASE_SWITCHING_LABEL = 'Fixed Start-Time dynamic parallelism'
+BEST_CASE_SWITCHING_LABEL = 'Fixed Start Time Dynamic Parallelism'
 JOB_SHIFT_LABEL = 'Job Shifting'
-ORACLE_SHIFT_SWITCH_LABEL = 'job shifting + dynamic parallelism'
+ORACLE_SHIFT_SWITCH_LABEL = 'Job Shifting + Dynamic Parallelism'
 
 
 def parse_args():
@@ -1020,7 +1020,7 @@ def main():
             key=lambda k: episode_sims[k].total_carbon_g,
         )
         keep = {
-            f'best static = {best_static_label}': episode_sims[best_static_label],
+            f'Best Static = {best_static_label}': episode_sims[best_static_label],
         }
         smart_plot_label = GREEDY_LABEL
         if smart_plot_label in episode_sims:
