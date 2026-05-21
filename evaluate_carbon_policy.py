@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import zipfile
 from pathlib import Path
 
@@ -25,7 +26,12 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from carbon_aware_env import (
+REPO_ROOT = Path(__file__).resolve().parent
+SRC_DIR = REPO_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from carbon_aware_3d.carbon_aware_env import (
     default_config, load_carbon_trace, make_env,
     rollout_static, rollout_job_shifting_static_fast,
     rollout_smart_switch, rollout_oracle_dp, rollout_oracle_shift_switch,

@@ -1,0 +1,13 @@
+# Core dependencies for the simulator, static/Greedy/oracle evaluation,
+# and plotting. GPU training/profiling extras are listed in pyproject.toml.
+numpy
+pandas
+matplotlib
+
+# Needed by GPU power-monitoring launchers.
+nvidia-ml-py
+
+# Needed only for carbon-trace download helpers in scripts/.
+requests
+python-dotenv
+

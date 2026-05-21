@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "carbon-aware-3d-parallelism"
+version = "0.1.0"
+description = "Research code for carbon-aware scheduling of elastic 3D parallel pretraining."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "pandas",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+power = ["nvidia-ml-py"]
+rl = ["gymnasium", "stable-baselines3"]
+data = ["requests", "python-dotenv"]
+profile = ["torch", "transformers"]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

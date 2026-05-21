@@ -22,10 +22,10 @@ from datetime import datetime
 
 # ── Paths ────────────────────────────────────────────────────
 
-MEGATRON_LM = "/u/data3/wat29/Megatron-LM"
-WORK_DIR = Path("/u/data3/wat29/carbon_benchmark")
-RESULTS_DIR = Path("/afs/cs.pitt.edu/usr0/wat29/scheduling-carbon-aware-3d-parallelism")
-RESULTS_CSV = RESULTS_DIR / "reshard_times.csv"
+MEGATRON_LM = os.environ.get("MEGATRON_LM", "/u/data3/wat29/Megatron-LM")
+WORK_DIR = Path(os.environ.get("RESHARD_BENCH_WORK_DIR", "/u/data3/wat29/carbon_benchmark"))
+REPO_ROOT = Path(__file__).resolve().parents[2]
+RESULTS_CSV = REPO_ROOT / "results" / "resharding" / "reshard_times.csv"
 
 # ── Model / training ─────────────────────────────────────────
 
@@ -252,6 +252,7 @@ def benchmark_reshard(src_dir: Path, src: Config, dst: Config) -> dict:
 
 def main():
     WORK_DIR.mkdir(parents=True, exist_ok=True)
+    RESULTS_CSV.parent.mkdir(parents=True, exist_ok=True)
     configs = enumerate_configs(N)
 
     print("=" * 60)

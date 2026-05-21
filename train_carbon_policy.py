@@ -14,11 +14,17 @@ Requires `stable-baselines3` and `gymnasium`. Install with:
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import numpy as np
 
-from carbon_aware_env import (
+REPO_ROOT = Path(__file__).resolve().parent
+SRC_DIR = REPO_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from carbon_aware_3d.carbon_aware_env import (
     default_config, load_carbon_trace, make_env,
     plot_training_curve,
 )
@@ -117,7 +123,7 @@ def main():
     print(f'  {cfg.pretraining_tokens:,} tokens, {len(cfg.strategies)} strategies')
 
     # Estimated reference: best static (1,1) carbon for offset 0
-    from carbon_aware_env import rollout_static
+    from carbon_aware_3d.carbon_aware_env import rollout_static
     static_sims = [rollout_static(cfg, trace_t, trace_ci, 0.0, i)
                    for i in range(len(cfg.strategies))]
     print('Reference static rollouts at offset 0:')

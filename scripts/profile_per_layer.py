@@ -28,10 +28,66 @@ from typing import Dict, List, Tuple, Optional
 import warnings
 
 import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset
+try:
+    import torch
+    import torch.nn as nn
+    import torch.nn.functional as F
+    from torch.utils.data import DataLoader, TensorDataset
+except ModuleNotFoundError as exc:
+    F = None
+    DataLoader = None
+    TensorDataset = None
+
+    class _MissingCuda:
+        @staticmethod
+        def is_available():
+            return False
+
+        class Event:
+            def __init__(self, *args, **kwargs):
+                pass
+
+        @staticmethod
+        def synchronize():
+            pass
+
+        @staticmethod
+        def empty_cache():
+            pass
+
+    class _MissingTorch:
+        Tensor = object
+        bfloat16 = None
+        cuda = _MissingCuda()
+
+        @staticmethod
+        def device(name):
+            return name
+
+        @staticmethod
+        def randint(*args, **kwargs):
+            raise ImportError("PyTorch is required for per-layer profiling")
+
+        @staticmethod
+        def ones(*args, **kwargs):
+            raise ImportError("PyTorch is required for per-layer profiling")
+
+        class no_grad:
+            def __enter__(self):
+                return None
+
+            def __exit__(self, *args):
+                return False
+
+    class _MissingNN:
+        class Module:
+            pass
+
+    torch = _MissingTorch()
+    nn = _MissingNN()
+    _TORCH_IMPORT_ERROR = exc
+else:
+    _TORCH_IMPORT_ERROR = None
 
 
 # ────────────────────────────────────────────────────────────────
@@ -880,7 +936,7 @@ def main():
         type=str,
         default=None,
         choices=[
-            "gpt2_xl", "pythia_2_8b", "llama_3b", "llama_7b",
+            "gpt2", "gpt2_xl", "pythia_2_8b", "llama_3b", "llama_7b",
         ],
         help="Model to profile",
     )
@@ -892,17 +948,23 @@ def main():
     parser.add_argument(
         "--output-dir",
         type=str,
-        default="./layer_profile_results",
+        default="./results/layer_profiles",
         help="Output directory",
     )
     parser.add_argument(
         "--device",
         type=str,
-        default="cuda" if torch.cuda.is_available() else "cpu",
+        default="cuda" if torch is not None and torch.cuda.is_available() else "cpu",
         help="Device to use",
     )
 
     args = parser.parse_args()
+    if _TORCH_IMPORT_ERROR is not None:
+        raise ImportError(
+            "PyTorch is required for per-layer profiling. "
+            "Install the profiling extras with `python -m pip install -e '.[profile]'` "
+            "or install a cluster-specific CUDA/PyTorch build."
+        ) from _TORCH_IMPORT_ERROR
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -921,6 +983,7 @@ def main():
     # All ungated. Swap llama_7b to meta-llama/Llama-2-7b-hf if you have access
     # (architecturally identical at 7B — both are MHA, vocab=32000, H=4096).
     models_to_profile = {
+        "gpt2":        ("gpt2",                             "gpt2"),
         "gpt2_xl":     ("gpt2-xl",                          "gpt2"),
         "pythia_2_8b": ("EleutherAI/pythia-2.8b-deduped",   "pythia"),
         "llama_3b":    ("openlm-research/open_llama_3b_v2", "llama"),

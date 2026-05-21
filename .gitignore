@@ -206,7 +206,8 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# ignore training data
+# Large model/data artifacts. Small carbon trace CSVs in data/ are intended to
+# be versionable so smoke tests and evaluation examples can run after clone.
 *.jsonl
 *.bin
 *.idx
@@ -215,10 +216,21 @@ Megatron-LM/
 llama-3.2-1B/
 llama-3.2-3B/
 apex
-data/
+data/checkpoints/
+data/raw/
+data/tmp/
+
+# Research run outputs and heavyweight training artifacts
+runs/
+slurm_logs/
+checkpoints/
+profile_workdir/
+wandb/
+*.tar.gz
+*.pt
+*.pth
+*.ckpt
+*.safetensors
 
 # misc
 .codex
-slurm_logs/
-runs/
-*.tar.gz

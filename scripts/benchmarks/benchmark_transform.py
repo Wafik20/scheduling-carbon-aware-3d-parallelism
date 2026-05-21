@@ -2,11 +2,12 @@
 """
 Launcher: runs benchmark_inner.py inside the NeMo container (one launch).
 """
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-CONTAINER = "/u/data3/wat29/nemo.sif"
+CONTAINER = os.environ.get("CARBON_CONTAINER_IMAGE", "/u/data3/wat29/nemo.sif")
 SCRIPT_DIR = Path(__file__).parent.resolve()
 INNER_SCRIPT = SCRIPT_DIR / "benchmark_inner.py"
 

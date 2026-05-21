@@ -18,7 +18,12 @@ import sys
 import time
 from pathlib import Path
 
-from compute_power import PowerMonitor
+REPO_ROOT = Path(__file__).resolve().parent
+SRC_DIR = REPO_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from carbon_aware_3d.compute_power import PowerMonitor
 from train_online_elastic import (
     DEFAULT_CONTAINER_IMAGE,
     DEFAULT_MEGATRON_DIR,

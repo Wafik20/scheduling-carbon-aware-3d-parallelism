@@ -9,7 +9,7 @@ The current training step can be fed in from the host process via
 with the iteration that was running when the sample was taken.
 
 Usage:
-    from compute_power import PowerMonitor
+    from carbon_aware_3d.compute_power import PowerMonitor
 
     monitor = PowerMonitor(interval=1.0, log_file="power_logs/gpt2/tp1_pp1_dp4.csv")
     monitor.start()
@@ -27,14 +27,25 @@ import threading
 import time
 from datetime import datetime
 
-from pynvml import (
-    NVMLError,
-    nvmlDeviceGetCount,
-    nvmlDeviceGetHandleByIndex,
-    nvmlDeviceGetPowerUsage,
-    nvmlInit,
-    nvmlShutdown,
-)
+try:
+    from pynvml import (
+        NVMLError,
+        nvmlDeviceGetCount,
+        nvmlDeviceGetHandleByIndex,
+        nvmlDeviceGetPowerUsage,
+        nvmlInit,
+        nvmlShutdown,
+    )
+except ModuleNotFoundError as exc:
+    NVMLError = Exception
+    nvmlDeviceGetCount = None
+    nvmlDeviceGetHandleByIndex = None
+    nvmlDeviceGetPowerUsage = None
+    nvmlInit = None
+    nvmlShutdown = None
+    _NVML_IMPORT_ERROR = exc
+else:
+    _NVML_IMPORT_ERROR = None
 
 
 class PowerMonitor:
@@ -57,6 +68,11 @@ class PowerMonitor:
             self._current_step = step
 
     def start(self):
+        if _NVML_IMPORT_ERROR is not None:
+            raise ImportError(
+                "nvidia-ml-py is required for GPU power monitoring. "
+                "Install it with `python -m pip install nvidia-ml-py`."
+            ) from _NVML_IMPORT_ERROR
         nvmlInit()
         self._n_gpus = nvmlDeviceGetCount()
         self._handles = [nvmlDeviceGetHandleByIndex(i) for i in range(self._n_gpus)]

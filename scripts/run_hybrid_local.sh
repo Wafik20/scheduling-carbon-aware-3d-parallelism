@@ -31,7 +31,7 @@ command -v apptainer >/dev/null || {
 }
 
 cd "$PROJECT"
-mkdir -p runs logs
+mkdir -p runs results/logs
 
 COMMON_BINDS=(
   --container-image "$CONTAINER"
@@ -101,7 +101,7 @@ run_one() {
   local ht="$8" hp="$9" hd="${10}"
 
   local run_dir="$PROJECT/runs/${kind}_${COMPARISON_TAG}"
-  local logfile="$PROJECT/logs/${kind}-${COMPARISON_TAG}.out"
+  local logfile="$PROJECT/results/logs/${kind}-${COMPARISON_TAG}.out"
   mkdir -p "$run_dir"
 
   rm -rf "$ELASTIC_CKPT_DIR"
@@ -166,5 +166,5 @@ echo "  tag:        $COMPARISON_TAG"
 echo "  naive:      $PROJECT/runs/naive_hybrid_${COMPARISON_TAG}/"
 echo "  static_a:   $PROJECT/runs/static_a_${COMPARISON_TAG}/"
 echo "  static_b:   $PROJECT/runs/static_b_${COMPARISON_TAG}/"
-echo "  logs:       $PROJECT/logs/*-${COMPARISON_TAG}.out"
+echo "  logs:       $PROJECT/results/logs/*-${COMPARISON_TAG}.out"
 echo "════════════════════════════════════════════════════════════════"

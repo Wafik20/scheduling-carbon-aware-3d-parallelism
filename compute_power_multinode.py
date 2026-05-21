@@ -56,14 +56,25 @@ import threading
 import time
 from datetime import datetime
 
-from pynvml import (
-    NVMLError,
-    nvmlDeviceGetCount,
-    nvmlDeviceGetHandleByIndex,
-    nvmlDeviceGetPowerUsage,
-    nvmlInit,
-    nvmlShutdown,
-)
+try:
+    from pynvml import (
+        NVMLError,
+        nvmlDeviceGetCount,
+        nvmlDeviceGetHandleByIndex,
+        nvmlDeviceGetPowerUsage,
+        nvmlInit,
+        nvmlShutdown,
+    )
+except ModuleNotFoundError as exc:
+    NVMLError = Exception
+    nvmlDeviceGetCount = None
+    nvmlDeviceGetHandleByIndex = None
+    nvmlDeviceGetPowerUsage = None
+    nvmlInit = None
+    nvmlShutdown = None
+    _NVML_IMPORT_ERROR = exc
+else:
+    _NVML_IMPORT_ERROR = None
 
 
 # ── Helpers ────────────────────────────────────────────────────────────
@@ -142,6 +153,11 @@ class PowerMonitor:
             self._current_step = int(step)
 
     def start(self) -> None:
+        if _NVML_IMPORT_ERROR is not None:
+            raise ImportError(
+                "nvidia-ml-py is required for GPU power monitoring. "
+                "Install it with `python -m pip install nvidia-ml-py`."
+            ) from _NVML_IMPORT_ERROR
         nvmlInit()
         self._n_gpus = nvmlDeviceGetCount()
         self._handles = [nvmlDeviceGetHandleByIndex(i) for i in range(self._n_gpus)]

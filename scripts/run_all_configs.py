@@ -156,7 +156,8 @@ def main():
         print("Dry run — exiting.")
         return
 
-    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "train.py")
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    script = os.path.join(repo_root, "train.py")
     results = []
     run_idx = 0
 
