@@ -1,67 +1,108 @@
 # Repository Structure
 
-The repository is organized around a small simulator package, runnable
-entrypoints, and preserved experiment artifacts.
+This repository is organized around a profiler, a scheduler/simulator, and
+preserved experiment artifacts.
 
 ## Core Source
 
 - `src/carbon_aware_3d/carbon_aware_env.py`
   - Carbon trace loading.
-  - `CarbonSim`, the pure-numpy simulator.
-  - Gymnasium wrapper for optional RL.
-  - Static, Greedy, fixed-start oracle, job-shift, and joint shift+dynamic
-    rollout helpers.
+  - Pure-Python simulator (`CarbonSim`).
+  - Static, Greedy/smart-switch, fixed-start dynamic, job-shift, and joint
+    shift+dynamic rollout helpers.
+  - Optional Gymnasium wrapper for RL experiments.
   - Plotting helpers.
 - `src/carbon_aware_3d/compute_power.py`
-  - Single-node NVML power monitor used by the training launchers.
+  - Single-node NVML power monitor used by training launchers.
 
-## Root Entrypoints
+## Main Root Entrypoints
 
-- `evaluate_carbon_policy.py`: main no-GPU simulator evaluation.
-- `train.py`: fixed or scheduled Megatron training with power monitoring.
-- `train_elastic.py`: planned elastic Megatron schedule launcher.
-- `train_online_elastic.py`: online elastic launcher driven by a calibration
-  JSON and carbon forecast CSV.
-- `train_naive_elastic.py`: simple carbon-bucket baseline launcher.
-- `train_carbon_policy.py`: optional PPO/DQN training.
-- `train_profile.py`: calibration/profile launcher.
-- `compute_power_multinode.py`: sidecar sampler for multi-node sweeps.
-- `make_static_schedule.py`: writes one-phase schedule JSONs.
+- `evaluate_carbon_policy.py`
+  - Main scheduler/simulator entrypoint.
+  - Compares static policies, Greedy, Fixed-Start Dynamic Parallelism, Job
+    Shifting, and Job Shifting + Dynamic Parallelism.
+- `train_profile.py`
+  - Megatron profiling launcher.
+  - Reads profile menus from `calibrations/` and writes measured calibration
+    JSON.
+- `train.py`
+  - Fixed or scheduled Megatron training launcher with power monitoring.
+- `train_elastic.py`
+  - Planned elastic Megatron schedule launcher.
+- `train_online_elastic.py`
+  - Online elastic launcher driven by calibration JSON and carbon forecast CSV.
+- `train_naive_elastic.py`
+  - Naive carbon-bucket elastic launcher.
+- `train_carbon_policy.py`
+  - Optional PPO/DQN policy training. This appears exploratory relative to the
+    paper-facing evaluation path.
+- `compute_power_multinode.py`
+  - Multi-node NVML sidecar sampler.
+- `make_static_schedule.py`
+  - Writes one-phase schedule JSON files.
 
 ## Supporting Folders
 
-- `scripts/`: runnable utilities that are not the main paper-facing
-  entrypoint. `scripts/benchmarks/` holds the resharding benchmark.
-- `batch_files/`: Slurm job scripts. These still assume the original cluster
-  paths unless environment variables or script arguments override them.
-- `calibrations/`: strategy menus and scheduler calibration JSON.
-- `schedules/`: example static and phase schedules.
-- `data/`: carbon-intensity traces and a README describing the expected CSV
-  schema.
-- `power_logs/`: measured GPU power traces used by analysis notebooks and
-  plots.
-- `runs/`: simulator/training outputs. This directory is ignored by default
-  because production runs can become large.
-- `figures/experiment_plots/`: generated analysis plots formerly under
-  `plots/`.
-- `results/layer_profiles/`: per-layer profiling results formerly under
-  `layer_profile_results/`.
-- `results/logs/`: historical `.out` logs formerly under `logs/`.
-- `results/resharding/`: resharding benchmark CSVs.
-- `notebooks/`: exploratory notebooks formerly in the repository root.
-- `archive/`: loose root artifacts kept because their provenance was unclear.
+- `scripts/`
+  - Utility scripts for data generation, profiling, cluster checks, and sweeps.
+- `scripts/benchmarks/`
+  - Resharding benchmark launcher and inner benchmark script.
+- `batch_files/`
+  - Slurm submission scripts. These contain original cluster defaults and
+    should be reviewed before reuse.
+- `calibrations/`
+  - Strategy menus, scheduler config files, and measured calibration JSONs.
+- `schedules/`
+  - Example one-phase and phased schedule JSON files.
+- `data/`
+  - Carbon-intensity traces. The paper uses Electricity Maps traces for AWS
+    `us-west-1` in 2024; verify the exact CSV before reproducing a result.
+- `power_logs/`
+  - NVML power traces from profiling/training runs.
+- `runs/`
+  - Simulator and training run outputs. This directory can become large and is
+    ignored by default.
+- `figures/experiment_plots/`
+  - Generated plots from previous analysis runs.
+- `results/layer_profiles/`
+  - Per-layer profiling tables and plots.
+- `results/resharding/`
+  - Resharding benchmark outputs.
+- `results/logs/`
+  - Historical local `.out` logs.
+- `notebooks/`
+  - Exploratory visualization notebooks. Some cells may contain historical
+    absolute paths.
+- `archive/`
+  - Old notes or one-off artifacts kept for provenance.
+- `docs/`
+  - Researcher-facing documentation.
+
+## Documentation Files
+
+- `docs/overview.md`: conceptual overview.
+- `docs/profiler.md`: profiling workflow and measured quantities.
+- `docs/scheduler.md`: simulator inputs, outputs, and commands.
+- `docs/policies.md`: policy definitions and naming notes.
+- `docs/reproducing_experiments.md`: practical command examples.
+- `docs/experiment_outputs.md`: output artifact guide.
+- `docs/cleanup_report.md`: historical cleanup note.
 
 ## Compatibility Notes
 
-The main root commands still run from the repository root. Internal imports
-now point at the package under `src/`. For ad hoc Python sessions, either run
-`python -m pip install -e .` or set `PYTHONPATH=src`.
+Run the root entrypoints from the repository root. For direct imports in an
+interactive session, install the package in editable mode:
 
-Old artifact paths:
+```bash
+python -m pip install -e .
+```
 
-- `plots/` -> `figures/experiment_plots/`
-- `layer_profile_results/` -> `results/layer_profiles/`
-- `logs/` -> `results/logs/`
-- `reshard_times.csv` -> `results/resharding/reshard_times.csv`
-- root notebooks -> `notebooks/`
+or set:
+
+```bash
+export PYTHONPATH=src
+```
+
+Some scripts and notebooks still reflect the original development cluster.
+Treat hardcoded paths as examples unless they match your environment.
 

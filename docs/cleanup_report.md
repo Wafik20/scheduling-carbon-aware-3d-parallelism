@@ -46,18 +46,22 @@ artifacts that could still be useful.
 
 - `README.md`
 - `docs/repository_structure.md`
+- `docs/overview.md`
+- `docs/profiler.md`
+- `docs/scheduler.md`
+- `docs/policies.md`
 - `docs/reproducing_experiments.md`
 - `docs/experiment_outputs.md`
 - `data/README.md`
 
 ## Unresolved
 
-- The paper PDF was not present in the workspace during cleanup. The README
-  therefore follows the repository code and existing README terminology rather
-  than quoting manuscript text.
+- The initial cleanup happened before manuscript-specific context was
+  available. Later documentation was updated to use the paper title
+  "Carbon-Aware Dynamic Parallelism for Distributed Training" and the
+  paper-facing policy terminology.
 - Some notebooks still contain historical absolute paths in saved outputs or
   exploratory cells. They were moved but not rewritten.
 - Slurm batch files still contain original cluster defaults. Override
   `PROJECT_DIR`, `CONTAINER`, `MEGATRON_HOST`, and related variables before
   submitting on another cluster.
-

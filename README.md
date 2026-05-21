@@ -1,79 +1,187 @@
-# Scheduling Carbon-Aware 3D Parallelism
+# Carbon-Aware Dynamic Parallelism for Distributed Training
 
-Research code for studying carbon-aware scheduling of large-model
-pretraining under elastic 3D parallelism. The project connects measured
-DP/TP/PP strategy profiles with hourly carbon-intensity traces to ask when a
-training job should run, which parallel configuration it should use, and how
-much energy/carbon each choice costs.
+This repository supports the paper **"Carbon-Aware Dynamic Parallelism for
+Distributed Training."** It studies large language model pretraining as a
+carbon-aware scheduling problem: instead of choosing one distributed
+parallelism configuration at launch and keeping it fixed, the scheduler can
+treat the parallelism configuration itself as a control knob.
 
-The current paper-facing evaluation path is simulator based. GPU launchers and
-profiling scripts are included for collecting the power, throughput, and
-resharding measurements that parameterize the simulator.
+When grid carbon intensity is high, the system can switch to lower-power
+parallel configurations. When carbon intensity is lower, it can switch back to
+higher-throughput configurations to recover progress while still meeting the
+training token budget and deadline.
+
+## Research Problem
+
+Distributed pretraining usually fixes its 3D parallelism layout for the full
+job. That is simple, but it assumes the best configuration is independent of
+time and carbon intensity. This project asks:
+
+- How do DP/TP/PP configurations change power, throughput, energy per token,
+  and switching overhead?
+- Can dynamic parallelism reduce carbon emissions compared with the best
+  deadline-feasible static configuration?
+- How much additional benefit is available when the scheduler can also delay
+  the job start time?
+
+The paper reports that fixed-start dynamic parallelism gives modest but
+meaningful carbon reductions over Best Static, up to about **3.4%**, with one
+Greedy episode saving **4.7%**. Those savings depend on the measured
+model/hardware/configuration profile and the carbon trace.
 
 ## Main Idea
 
-Large pretraining jobs can run under several valid 3D parallel configurations.
-Those configurations have different throughput, power draw, energy per token,
-and resharding costs. This repository compares:
+The project has two main pieces:
 
-- **Static:** choose one DP/TP/PP strategy and never switch.
-- **Greedy / smart-switch:** an online heuristic that uses limited carbon
-  lookahead to switch between faster and lower-power strategies.
-- **Fixed Start-Time dynamic parallelism:** an offline dynamic-programming
-  oracle that changes DP/TP/PP during a job, then replays the action sequence
-  in the exact simulator.
-- **Job Shifting:** delay the start of a job within an allowed slack window.
-- **Job Shifting + Dynamic Parallelism:** jointly choose a delayed start time
-  and a dynamic DP/TP/PP schedule.
+1. **Profiler:** run short Megatron Core / Megatron-LM jobs for feasible
+   parallel configurations and measure the cost/performance table.
+2. **Scheduler / simulator:** combine the measured table with a token budget,
+   deadline, carbon-intensity trace, and switching costs to choose a
+   configuration over time.
 
-Optional PPO/DQN experiments exist, but they are not the default evaluation
-pipeline.
+The scheduler is intentionally profile-driven. Power and throughput depend on
+the model, hardware, and parallel configuration, so the code should not assume
+one universally best DP/TP/PP layout. In the paper's single 4-GPU L40 setup,
+`TP=4` had the lowest measured average power, but also lower throughput. That
+ranking should not be assumed to generalize to multi-node systems, where
+cross-node communication can change both power and throughput.
 
-## Terminology
+## 3D Parallelism
 
-**DP (data parallelism)** replicates the model across workers and splits data
-batches. In this codebase DP is inferred as `n_gpus / (tp * pp)` for a
-strategy.
+Configurations are written as:
 
-**TP (tensor parallelism)** shards tensor operations within a layer across
-GPUs.
+```text
+(TP, PP, DP)
+```
 
-**PP (pipeline parallelism)** shards model layers into pipeline stages.
+- **TP = tensor parallelism:** shards tensor operations within layers.
+- **PP = pipeline parallelism:** partitions model layers into pipeline stages.
+- **DP = data parallelism:** replicates the model state across data-parallel
+  groups and splits batches.
 
-**Dynamic parallelism** means changing the active `(tp, pp, dp)` strategy over
-the course of one pretraining job. The simulator charges measured warmup,
-checkpoint/save, and resharding costs when a switch happens.
+A valid configuration must satisfy:
 
-**Job shifting** means delaying a job's start time to run during cleaner carbon
-intensity, while still respecting the user-specified deadline/slack.
+```text
+TP * PP * DP = world size
+```
 
-## Repository Layout
+For example, on 4 GPUs, the valid configurations are:
+
+```text
+(4, 1, 1)
+(1, 4, 1)
+(1, 1, 4)
+(2, 2, 1)
+(2, 1, 2)
+(1, 2, 2)
+```
+
+## Profiler
+
+The profiler runs short distributed training jobs for each feasible
+configuration `pi = (TP, PP, DP)`. For each configuration, it measures or
+derives:
+
+- steady-state power
+- throughput
+- energy per step
+- energy per token
+- switching or resharding cost between configurations
+
+Throughput comes from Megatron training logs or metrics. Power is sampled with
+NVML and aggregated across the GPUs assigned to the job. The profile outputs
+are stored as calibration JSON, CSV summaries, and power logs that the
+simulator can consume.
+
+Main profiler-related files:
+
+- `train_profile.py`: launcher for Megatron profiling runs.
+- `scripts/profile_per_layer.py`: exploratory per-layer timing profiler.
+- `scripts/benchmarks/benchmark_transform.py`: resharding benchmark launcher.
+- `compute_power_multinode.py`: multi-node NVML power-monitor sidecar.
+- `calibrations/`: measured configuration/profile JSON files.
+- `power_logs/`: measured GPU power traces.
+
+See `docs/profiler.md` for details.
+
+## Scheduler / Simulator
+
+The scheduler uses:
+
+- a token budget
+- a deadline
+- an hourly carbon-intensity trace
+- a profiled power and throughput table
+- switching cost between configurations
+
+It then chooses which parallel configuration to use over time in order to
+reduce carbon emissions while completing the training job before the deadline.
+The main simulator entrypoint is:
+
+```text
+evaluate_carbon_policy.py
+```
+
+The simulator code lives in:
+
+```text
+src/carbon_aware_3d/carbon_aware_env.py
+```
+
+The paper uses Electricity Maps carbon-intensity traces for AWS `us-west-1` in
+2024. The repository contains several carbon trace CSVs under `data/`,
+including region-specific examples.
+
+See `docs/scheduler.md` for simulator inputs, outputs, and caveats.
+
+## Policies
+
+The docs and scripts use the following paper-facing policy names:
+
+- **Best Static:** the lowest-carbon static configuration that finishes before
+  the deadline.
+- **Greedy:** an online policy that uses the current hour's carbon intensity,
+  not the future trace. Some script arguments still use older `smart-*` names.
+- **Fixed-Start Dynamic Parallelism:** the job starts immediately, but the
+  scheduler may switch TP/PP/DP configurations during the run.
+- **Job Shifting + Dynamic Parallelism:** the scheduler may delay the start
+  time and switch configurations during the run.
+
+See `docs/policies.md` for the full definitions and naming notes.
+
+## Repository Map
 
 ```text
 README.md                      project overview and quickstart
 pyproject.toml, requirements.txt, env.yaml
 src/carbon_aware_3d/           reusable simulator and power-monitor modules
-evaluate_carbon_policy.py      main simulator evaluation entrypoint
-train*.py                      Megatron/elastic training launchers
-compute_power_multinode.py     multi-node NVML power monitor sidecar
-make_static_schedule.py        helper for static schedule JSONs
+evaluate_carbon_policy.py      main scheduler/simulator entrypoint
+train_profile.py               Megatron profile launcher
+train.py                       fixed or scheduled Megatron training launcher
+train_elastic.py               planned elastic schedule launcher
+train_online_elastic.py        online elastic launcher
+train_naive_elastic.py         naive carbon-bucket launcher
+train_carbon_policy.py         optional PPO/DQN policy trainer
+compute_power_multinode.py     multi-node NVML power monitor
+make_static_schedule.py        helper for one-phase schedule JSON files
 scripts/                       data, profiling, benchmark, and cluster helpers
+scripts/benchmarks/            resharding benchmark scripts
 batch_files/                   Slurm submission scripts
 calibrations/                  measured strategy/profile configs
 schedules/                     example static and phased schedules
-data/                          hourly carbon-intensity traces
-power_logs/                    measured GPU power logs used for analysis
+data/                          carbon-intensity traces
+power_logs/                    measured GPU power logs
 runs/                          simulator/training run outputs
-figures/experiment_plots/      generated plots from prior analysis
+figures/experiment_plots/      generated plots from prior analyses
 results/                       logs, layer profiles, and benchmark tables
 notebooks/                     exploratory visualization notebooks
-archive/                       old or unclear loose root files kept for safety
-docs/                          additional reproduction and output notes
+archive/                       old notes or one-off artifacts kept for safety
+docs/                          additional documentation
 ```
 
-See `docs/repository_structure.md` for more detail.
+See `docs/repository_structure.md` for a more detailed map.
 
-## Install
+## Setup
 
 For simulator evaluation and plotting:
 
@@ -91,14 +199,23 @@ conda env create -f env.yaml
 conda activate gpu_env
 ```
 
-Full GPU training launchers also require a Megatron-LM checkout, a compatible
-PyTorch/CUDA stack, Apptainer, and cluster-specific container/bind paths.
-Those paths are exposed as command-line flags on the training scripts.
+Full profiling/training runs also require:
+
+- Megatron Core / Megatron-LM with the project-specific profiling or elastic
+  entrypoints available inside the container.
+- PyTorch and CUDA versions compatible with the cluster.
+- Apptainer for the existing launch scripts.
+- Slurm for the batch files.
+- NVML access for power measurement.
+
+Cluster paths in the scripts reflect the original development environment;
+override container, bind, Megatron, and work directories before using another
+system.
 
 ## Smoke Test
 
-This runs the no-GPU simulator on a small token budget and writes plots/tables
-under `runs/smoke_eval`:
+This is a small no-GPU simulator check. It should create `results.csv` and a
+few plots under `runs/smoke_eval/`:
 
 ```bash
 python evaluate_carbon_policy.py \
@@ -113,11 +230,11 @@ python evaluate_carbon_policy.py \
   --out runs/smoke_eval
 ```
 
-## Main Simulator Evaluation
+This does not launch Megatron or GPU training.
 
-The main reusable evaluation script is `evaluate_carbon_policy.py`. A typical
-paper-style run comparing static, Greedy, fixed-start dynamic parallelism, job
-shifting, and joint shifting+dynamic parallelism is:
+## Running Scheduler / Simulation Experiments
+
+A typical simulator command is:
 
 ```bash
 python evaluate_carbon_policy.py \
@@ -138,56 +255,54 @@ python evaluate_carbon_policy.py \
   --out runs/eval_static_smart_oracle
 ```
 
-Useful variants:
+This command inspects the scheduler/simulator path, but you should verify the
+exact trace, token budget, deadline, and calibration settings against the paper
+experiment before treating it as a figure-reproduction command.
 
-- Add `--filter-strategies --model-num-params <N>` to remove infeasible
-  strategies by a simple per-GPU memory estimate.
-- Add `--fixed-offset-h <hours>` when debugging one trace start offset.
-- Add `--include-rl --model <path.zip> --algo ppo|dqn` for an optional saved
-  Stable-Baselines policy.
+More examples are in `docs/reproducing_experiments.md`.
 
-## GPU Measurement and Profiling
+## Running or Inspecting Profiling Scripts
 
-The GPU launchers were written for Slurm + Apptainer + Megatron-LM. They are
-not required for the simulator smoke test.
+Profiling launches Megatron jobs and should be run only on the intended GPU
+cluster. Start with dry runs where available:
 
-- `train.py`: fixed or scheduled Megatron training with single-node power
-  monitoring.
-- `train_elastic.py`: planned elastic schedule using Megatron elastic
-  pretraining.
-- `train_online_elastic.py`: online scheduler using calibration JSON and a
-  carbon forecast CSV.
-- `train_naive_elastic.py`: carbon-bucket baseline launcher.
-- `train_profile.py`: profile strategy menus and write calibration JSON.
-- `scripts/profile_per_layer.py`: per-layer timing profiles, defaulting to
-  `results/layer_profiles/`.
-- `scripts/benchmarks/benchmark_transform.py`: resharding benchmark launcher;
-  its CSV is written to `results/resharding/reshard_times.csv`.
-- `batch_files/` and `scripts/submit_gpt2m_node_sweeps.sh`: Slurm sweeps for
-  multi-node DP/TP/PP measurements.
+```bash
+python train_profile.py --help
+python train_online_elastic.py --help
+python train.py --help
+python scripts/run_all_configs.py --model gpt2 --dry-run
+```
 
-See `docs/reproducing_experiments.md` for command examples.
+The Slurm scripts in `batch_files/` show how the original experiments were
+submitted. Review paths, partitions, accounts, model settings, and output
+directories before using them.
 
-## Outputs
+## Outputs, Figures, Logs, and Traces
 
-Simulator outputs go under `runs/<name>/` and usually include `results.csv`,
-aggregate plots, selected rollout plots, and diagnostic CSVs when debugging is
-enabled. Measured GPU power traces are in `power_logs/`. Existing generated
-figures were moved to `figures/experiment_plots/`. Historical local `.out`
-logs were moved to `results/logs/`.
+- `runs/`: simulator and training run outputs.
+- `data/`: hourly carbon-intensity traces.
+- `calibrations/`: profiler output JSON and scheduler config files.
+- `power_logs/`: NVML power traces.
+- `figures/experiment_plots/`: generated analysis plots.
+- `results/layer_profiles/`: per-layer profiling outputs.
+- `results/resharding/`: resharding benchmark tables.
+- `results/logs/`: historical local `.out` logs.
 
 See `docs/experiment_outputs.md` for a file-by-file guide.
 
-## Hardware Assumptions
+## Hardware Assumptions and Limitations
 
-The simulator default strategy table is an 8-GPU measured profile with
-48 GB-per-GPU memory used by the feasibility filter unless overridden.
-Several live-training scripts default to the original development cluster's
-4-GPU-node Slurm/Apptainer setup and paths. For another cluster, pass
-`--container-image`, repeated `--container-bind`, `--megatron-dir`,
-`--num-gpus`, and `--work-dir` explicitly.
-
-The code intentionally separates the no-GPU simulator evaluation from the
-cluster launchers so another researcher can inspect and reproduce scheduling
-logic before collecting new hardware measurements.
+- The paper evaluates GPT-2, Llama-style, and Pythia models.
+- The training/profiling path uses Megatron Core / Megatron-LM.
+- The paper carbon traces come from Electricity Maps for AWS `us-west-1` in
+  2024.
+- The single-node measurements discussed in the paper include a 4-GPU L40
+  setup. Multi-node behavior can differ because cross-node communication
+  changes throughput and power.
+- The simulator is only as accurate as the profiled power/throughput/switching
+  table used as input.
+- Some scripts are exploratory or cluster-specific. The current repository
+  suggests several older notebooks and generated outputs were kept for
+  provenance rather than as clean reproduction entrypoints.
+  
 
