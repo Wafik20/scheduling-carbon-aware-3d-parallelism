@@ -1,0 +1,19 @@
+region,workload_label,best_static_policy,best_static_feasible_runs,fixed_dp_feasible_runs,paired_completed_runs,fixed_dp_reshards_median,run_dir
+us-west-1,GPT-2 3.5B tokens,"static(1,1)",32,27,32,0.0,runs/region_may2024_fixed_dp_25slack/us-west-1/gpt2_3p5b
+us-west-1,GPT-2 10B tokens,"static(1,1)",32,28,32,2.0,runs/region_may2024_fixed_dp_25slack/us-west-1/gpt2_10b
+us-west-1,GPT-2 15B tokens,"static(1,1)",32,27,32,3.0,runs/region_may2024_fixed_dp_25slack/us-west-1/gpt2_15b
+us-west-1,GPT-2 12B tokens,"static(1,1)",32,30,32,3.0,runs/region_may2024_fixed_dp_25slack/us-west-1/gpt2_12b
+us-west-1,GPT-2 20B tokens,"static(1,1)",32,28,32,5.0,runs/region_may2024_fixed_dp_25slack/us-west-1/gpt2_20b
+us-west-1,Llama 1B 3B tokens,"static(1,1)",32,24,32,3.5,runs/region_may2024_fixed_dp_25slack/us-west-1/llama1b_3b
+us-west-2,GPT-2 3.5B tokens,"static(1,1)",32,32,32,0.0,runs/region_may2024_fixed_dp_25slack/us-west-2/gpt2_3p5b
+us-west-2,GPT-2 10B tokens,"static(1,1)",32,31,32,0.0,runs/region_may2024_fixed_dp_25slack/us-west-2/gpt2_10b
+us-west-2,GPT-2 15B tokens,"static(1,1)",32,32,32,1.5,runs/region_may2024_fixed_dp_25slack/us-west-2/gpt2_15b
+us-west-2,GPT-2 12B tokens,"static(1,1)",32,32,32,0.0,runs/region_may2024_fixed_dp_25slack/us-west-2/gpt2_12b
+us-west-2,GPT-2 20B tokens,"static(1,1)",32,32,32,2.0,runs/region_may2024_fixed_dp_25slack/us-west-2/gpt2_20b
+us-west-2,Llama 1B 3B tokens,"static(1,2)",32,26,32,5.5,runs/region_may2024_fixed_dp_25slack/us-west-2/llama1b_3b
+us-east-2,GPT-2 3.5B tokens,"static(1,1)",32,32,32,0.0,runs/region_may2024_fixed_dp_25slack/us-east-2/gpt2_3p5b
+us-east-2,GPT-2 10B tokens,"static(1,1)",32,32,32,0.0,runs/region_may2024_fixed_dp_25slack/us-east-2/gpt2_10b
+us-east-2,GPT-2 15B tokens,"static(1,1)",32,32,32,0.0,runs/region_may2024_fixed_dp_25slack/us-east-2/gpt2_15b
+us-east-2,GPT-2 12B tokens,"static(1,1)",32,32,32,0.0,runs/region_may2024_fixed_dp_25slack/us-east-2/gpt2_12b
+us-east-2,GPT-2 20B tokens,"static(1,1)",32,32,32,0.0,runs/region_may2024_fixed_dp_25slack/us-east-2/gpt2_20b
+us-east-2,Llama 1B 3B tokens,"static(1,1)",32,32,32,0.0,runs/region_may2024_fixed_dp_25slack/us-east-2/llama1b_3b

@@ -823,6 +823,7 @@ def rollout_oracle_dp(sim_cfg: SimConfig,
                       wrap_trace: bool = False,
                       candidate_action_sequences: list[Sequence[int]] | None = None,
                       candidate_initial_strategy_indices: list[int | None] | None = None,
+                      respect_deadline: bool = False,
                       debug: bool = False) -> CarbonSim:
     """Discretized dynamic-programming oracle for the fixed-token problem.
 
@@ -842,11 +843,16 @@ def rollout_oracle_dp(sim_cfg: SimConfig,
     n_strategies = len(strategies)
     target_tokens = float(sim_cfg.pretraining_tokens)
     target_bin = int(math.ceil(target_tokens / token_quantum))
-    t_num = int(math.ceil(max_hours * 3600.0 / decision_interval_s))
+    deadline_s = max_hours * 3600.0
+    deadline_tol_s = 1e-6
 
     ci_probe = CarbonSim(sim_cfg, trace_t, trace_ci, wrap_trace=wrap_trace)
     ci_probe.reset(trace_offset_s, initial_strategy_idx=0)
     initial_idle_s = sim_cfg.container_startup_s + sim_cfg.fresh_build_s
+    dp_horizon_s = deadline_s
+    if respect_deadline:
+        dp_horizon_s = max(0.0, deadline_s - initial_idle_s)
+    t_num = int(math.ceil(dp_horizon_s / decision_interval_s))
 
     def next_hour_boundary_local(t_local: float) -> float:
         trace_pos = trace_offset_s + t_local
@@ -1153,29 +1159,22 @@ def rollout_oracle_dp(sim_cfg: SimConfig,
                 best_k = k
 
     if not np.isfinite(best_cost):
-        return rollout_static(
-            sim_cfg,
-            trace_t,
-            trace_ci,
-            trace_offset_s,
-            strategy_idx=_fastest_strategy_idx(sim_cfg),
-            decision_interval_s=decision_interval_s,
-            max_hours=max_hours,
-            wrap_trace=wrap_trace,
-        )
-
-    actions = []
-    q = target_bin
-    k = best_k
-    for t in range(best_t, 0, -1):
-        actions.append(k)
-        pq = int(parent_q[t, q, k])
-        pk = int(parent_k[t, q, k])
-        if pq < 0 or pk < 0:
-            break
-        q, k = pq, pk
-    actions.reverse()
-    initial_k = k
+        fastest_idx = _fastest_strategy_idx(sim_cfg)
+        actions = [fastest_idx] * max(1, t_num)
+        initial_k = fastest_idx
+    else:
+        actions = []
+        q = target_bin
+        k = best_k
+        for t in range(best_t, 0, -1):
+            actions.append(k)
+            pq = int(parent_q[t, q, k])
+            pk = int(parent_k[t, q, k])
+            if pq < 0 or pk < 0:
+                break
+            q, k = pq, pk
+        actions.reverse()
+        initial_k = k
 
     if debug:
         from collections import Counter
@@ -1196,16 +1195,9 @@ def rollout_oracle_dp(sim_cfg: SimConfig,
         )
 
     if not actions:
-        return rollout_static(
-            sim_cfg,
-            trace_t,
-            trace_ci,
-            trace_offset_s,
-            strategy_idx=_fastest_strategy_idx(sim_cfg),
-            decision_interval_s=decision_interval_s,
-            max_hours=max_hours,
-            wrap_trace=wrap_trace,
-        )
+        fastest_idx = _fastest_strategy_idx(sim_cfg)
+        actions = [fastest_idx] * max(1, t_num)
+        initial_k = fastest_idx
 
     def replay_actions(action_seq: Sequence[int],
                        initial_strategy_idx: int | None = None) -> CarbonSim:
@@ -1221,16 +1213,37 @@ def rollout_oracle_dp(sim_cfg: SimConfig,
             wrap_trace=wrap_trace,
         )
 
+    def exact_deadline_feasible(candidate_sim: CarbonSim) -> bool:
+        return (
+            candidate_sim.done()
+            and (
+                not respect_deadline
+                or candidate_sim.cursor_s <= deadline_s + deadline_tol_s
+            )
+        )
+
+    def candidate_is_better(candidate_sim: CarbonSim,
+                            current_sim: CarbonSim | None) -> bool:
+        candidate_feasible = exact_deadline_feasible(candidate_sim)
+        current_feasible = (
+            current_sim is not None and exact_deadline_feasible(current_sim)
+        )
+        if candidate_feasible:
+            return (
+                not current_feasible
+                or candidate_sim.total_carbon_g
+                < current_sim.total_carbon_g - 1e-9
+            )
+        if current_feasible or not candidate_sim.done():
+            return False
+        if current_sim is None or not current_sim.done():
+            return True
+        return candidate_sim.total_carbon_g < current_sim.total_carbon_g - 1e-9
+
     def replay_improves(candidate_actions: list[int],
                         current_sim: CarbonSim) -> tuple[bool, CarbonSim]:
         candidate_sim = replay_actions(candidate_actions)
-        improves = (
-            candidate_sim.done()
-            and (
-                not current_sim.done()
-                or candidate_sim.total_carbon_g < current_sim.total_carbon_g - 1e-9
-            )
-        )
+        improves = candidate_is_better(candidate_sim, current_sim)
         return improves, candidate_sim
 
     sim = replay_actions(actions)
@@ -1315,8 +1328,7 @@ def rollout_oracle_dp(sim_cfg: SimConfig,
                 print('actions:', list(candidate_actions))
             if not candidate_sim.done():
                 continue
-            if (not best_sim.done()
-                    or candidate_sim.total_carbon_g < best_sim.total_carbon_g):
+            if candidate_is_better(candidate_sim, best_sim):
                 best_sim = candidate_sim
 
     for strategy_idx in range(n_strategies):
@@ -1332,8 +1344,7 @@ def rollout_oracle_dp(sim_cfg: SimConfig,
         )
         if not static_sim.done():
             continue
-        if (not best_sim.done()
-                or static_sim.total_carbon_g < best_sim.total_carbon_g):
+        if candidate_is_better(static_sim, best_sim):
             best_sim = static_sim
 
     if debug:
@@ -1354,6 +1365,8 @@ def rollout_oracle_dp(sim_cfg: SimConfig,
         if static_carbons:
             print('[oracle debug] best static carbon:', min(static_carbons))
         print('[oracle debug] returned oracle carbon:', best_sim.total_carbon_g)
+        print('[oracle debug] returned oracle exact-deadline feasible:',
+              exact_deadline_feasible(best_sim))
 
     return best_sim
 
@@ -1421,6 +1434,7 @@ def rollout_oracle_shift_switch(
                 token_quantum=token_quantum,
                 switch_cost_mode=switch_cost_mode,
                 wrap_trace=wrap_trace,
+                respect_deadline=True,
                 debug=debug,
             )
         except TraceOverrunError:

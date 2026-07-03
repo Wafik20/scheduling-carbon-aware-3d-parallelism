@@ -1,0 +1,7 @@
+region,model,token_budget,max_episode_hours,max_random_offset_h
+us-east-2,llama3b,7b,504,0.0
+us-east-2,llama3b,8b,576,0.0
+us-west-1,llama3b,7b,504,0.0
+us-west-1,llama3b,8b,576,0.0
+us-west-2,llama3b,7b,504,0.0
+us-west-2,llama3b,8b,576,0.0

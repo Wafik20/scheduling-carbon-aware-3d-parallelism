@@ -196,7 +196,7 @@ Conda users can start from:
 
 ```bash
 conda env create -f env.yaml
-conda activate gpu_env
+conda activate conda_env
 ```
 
 Full profiling/training runs also require:
@@ -305,4 +305,3 @@ See `docs/experiment_outputs.md` for a file-by-file guide.
   suggests several older notebooks and generated outputs were kept for
   provenance rather than as clean reproduction entrypoints.
   
-
