@@ -61,8 +61,12 @@ def parse_args():
     p.add_argument('--n-gpus', type=int, default=8,
                    help='Number of GPUs represented by the strategy profile.')
     p.add_argument('--strategy-profile-csv', default=None,
-                   help='Optional strategy_profile.csv to use instead of the '
-                        'embedded default GPT-2 profile.')
+                   help='Optional strategy_profile.csv or profiler calibration '
+                        '.json to use instead of the embedded default GPT-2 '
+                        'profile.')
+    p.add_argument('--strategy-profile', default=None,
+                   help='Alias for --strategy-profile-csv. Accepts either the '
+                        'legacy CSV or new calibration JSON.')
     p.add_argument('--model-name', default=None,
                    help='Model label for feasibility summaries')
     p.add_argument('--model-num-params', type=int, default=None,
@@ -182,6 +186,57 @@ def detect_model_algo(model_path: str | Path) -> str | None:
     return None
 
 
+def strategy_label(strategy: dict) -> str:
+    parts = [
+        f"tp={int(strategy['tp'])}",
+        f"pp={int(strategy['pp'])}",
+    ]
+    if 'dp' in strategy:
+        parts.append(f"dp={int(strategy['dp'])}")
+    if 'micro_batch_size' in strategy:
+        parts.append(f"mbs={int(strategy['micro_batch_size'])}")
+    return "(" + ",".join(parts) + ")"
+
+
+def static_policy_label(strategy: dict) -> str:
+    return f"static{strategy_label(strategy)}"
+
+
+def _normalize_strategy_rows(rows: list[dict], path: str | Path) -> list[dict]:
+    if not rows:
+        raise ValueError(f'Strategy profile {path} has no rows')
+
+    strategies = []
+    int_fields = {
+        'tp',
+        'pp',
+        'dp',
+        'micro_batch_size',
+        'num_microbatches',
+        'warmup_iters',
+        'measure_iters',
+    }
+
+    for row in rows:
+        strategy = {}
+        for field, value in row.items():
+            if pd.isna(value):
+                continue
+            if field in int_fields:
+                strategy[field] = int(value)
+            elif isinstance(value, (bool, np.bool_)):
+                strategy[field] = bool(value)
+            elif isinstance(value, (int, float, np.integer, np.floating)):
+                strategy[field] = float(value)
+            else:
+                strategy[field] = value
+
+        strategy['label'] = strategy_label(strategy)
+        strategies.append(strategy)
+
+    return strategies
+
+
 def load_strategy_profile_csv(path: str | Path) -> list[dict]:
     """Load a saved strategy_profile.csv into simulator strategy dicts."""
     profile = pd.read_csv(path)
@@ -204,29 +259,50 @@ def load_strategy_profile_csv(path: str | Path) -> list[dict]:
             f'Strategy profile {path} missing columns: {sorted(missing)}'
         )
 
-    strategies = []
-    int_fields = {'tp', 'pp', 'dp', 'warmup_iters'}
-    float_fields = required - int_fields
-    passthrough_fields = [
-        col for col in profile.columns
-        if col not in int_fields and col not in float_fields
-    ]
-
-    for row in profile.to_dict(orient='records'):
-        strategy = {}
-        for field in int_fields:
-            strategy[field] = int(row[field])
-        for field in float_fields:
-            strategy[field] = float(row[field])
-        for field in passthrough_fields:
-            value = row[field]
-            if not pd.isna(value):
-                strategy[field] = value
-        strategies.append(strategy)
-
+    strategies = _normalize_strategy_rows(profile.to_dict(orient='records'), path)
     if not strategies:
         raise ValueError(f'Strategy profile {path} has no rows')
     return strategies
+
+
+def load_strategy_profile_json(path: str | Path) -> list[dict]:
+    """Load profile_strategies.py calibration JSON into simulator strategies."""
+    with open(path) as f:
+        doc = json.load(f)
+
+    if isinstance(doc, dict):
+        rows = doc.get('strategies')
+        default_micro_batch_size = doc.get('default_micro_batch_size')
+    else:
+        rows = doc
+        default_micro_batch_size = None
+
+    if not isinstance(rows, list):
+        raise ValueError(f'Strategy profile {path} missing strategies list')
+
+    normalized_rows = []
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError(f'Strategy profile {path} contains non-object row')
+        row = dict(row)
+        if (
+            'micro_batch_size' not in row
+            and default_micro_batch_size is not None
+        ):
+            row['micro_batch_size'] = default_micro_batch_size
+        normalized_rows.append(row)
+
+    strategies = _normalize_strategy_rows(normalized_rows, path)
+    if not strategies:
+        raise ValueError(f'Strategy profile {path} has no rows')
+    return strategies
+
+
+def load_strategy_profile(path: str | Path) -> list[dict]:
+    path = Path(path)
+    if path.suffix.lower() == '.json':
+        return load_strategy_profile_json(path)
+    return load_strategy_profile_csv(path)
 
 
 def _append_episode_record(
@@ -711,7 +787,7 @@ def dump_shift_switch_candidate_table(
     print(
         'job_shift_strategy:',
         shift_strategy_idx,
-        (shift_strategy['tp'], shift_strategy['pp']),
+        strategy_label(shift_strategy),
     )
     print('candidate table:', path)
     display_cols = [
@@ -780,7 +856,7 @@ def run_one_episode(
 
     # ----- Static baselines (one per strategy) -----
     for i, s in enumerate(cfg.strategies):
-        label = f"static({s['tp']},{s['pp']})"
+        label = static_policy_label(s)
         try:
             sim = rollout_static(cfg, trace_t, trace_ci, float(offset),
                                  strategy_idx=i,
@@ -894,7 +970,7 @@ def run_one_episode(
             print(
                 'Greedy strategy tuples:',
                 [
-                    (cfg.strategies[a]['tp'], cfg.strategies[a]['pp'])
+                    strategy_label(cfg.strategies[a])
                     for a in smart_actions
                 ],
             )
@@ -1240,8 +1316,9 @@ def main():
         min_pp=args.min_pp,
         verbose_feasibility=not args.quiet_feasibility,
     )
-    if args.strategy_profile_csv is not None:
-        cfg.strategies = load_strategy_profile_csv(args.strategy_profile_csv)
+    strategy_profile_path = args.strategy_profile or args.strategy_profile_csv
+    if strategy_profile_path is not None:
+        cfg.strategies = load_strategy_profile(strategy_profile_path)
 
     dynamic_scheduling_applicable = len(cfg.strategies) >= 2
     if not dynamic_scheduling_applicable:

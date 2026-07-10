@@ -537,16 +537,33 @@ def bool_series(series: pd.Series) -> pd.Series:
     return series.astype(str).str.lower().isin(["true", "1", "yes"])
 
 
-def fastest_throughput(profile_csv: Path) -> float:
-    if not profile_csv.exists():
-        raise FileNotFoundError(profile_csv)
-    with profile_csv.open(newline="") as handle:
+def load_strategy_profile_rows(profile_path: Path) -> list[dict]:
+    if not profile_path.exists():
+        raise FileNotFoundError(profile_path)
+
+    if profile_path.suffix.lower() == ".json":
+        with profile_path.open() as handle:
+            doc = json.load(handle)
+        if isinstance(doc, dict):
+            rows = doc.get("strategies")
+        else:
+            rows = doc
+        if not isinstance(rows, list):
+            raise ValueError(f"Strategy profile has no rows: {profile_path}")
+        return [dict(row) for row in rows]
+
+    with profile_path.open(newline="") as handle:
         reader = csv.DictReader(handle)
-        throughputs = [
-            float(row["throughput_tok_s"])
-            for row in reader
-            if row.get("throughput_tok_s")
-        ]
+        return list(reader)
+
+
+def fastest_throughput(profile_csv: Path) -> float:
+    rows = load_strategy_profile_rows(profile_csv)
+    throughputs = [
+        float(row["throughput_tok_s"])
+        for row in rows
+        if row.get("throughput_tok_s") not in (None, "")
+    ]
     if not throughputs:
         raise ValueError(f"No throughput_tok_s values found in {profile_csv}")
     return max(throughputs)

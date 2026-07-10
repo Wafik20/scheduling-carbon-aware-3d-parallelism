@@ -102,6 +102,19 @@ class StepRecord:
     ci_at_step_start: float
 
 
+def strategy_label(strategy: dict, *, include_dp: bool = True) -> str:
+    """Compact display label for TP/PP strategies, including MBS when present."""
+    parts = [
+        f"tp={int(strategy['tp'])}",
+        f"pp={int(strategy['pp'])}",
+    ]
+    if include_dp and 'dp' in strategy:
+        parts.append(f"dp={int(strategy['dp'])}")
+    if 'micro_batch_size' in strategy:
+        parts.append(f"mbs={int(strategy['micro_batch_size'])}")
+    return "(" + ",".join(parts) + ")"
+
+
 class CarbonSim:
     """Pure-Python simulator. Reused by the Gym env, baselines, and tests.
 
@@ -981,7 +994,7 @@ def rollout_oracle_dp(sim_cfg: SimConfig,
         for i, s in enumerate(strategies):
             print(
                 i,
-                (s['tp'], s['pp']),
+                strategy_label(s),
                 'P=', s['power_w'],
                 'r=', s['throughput_tok_s'],
                 'step=', s.get('step_time_s'),
@@ -990,7 +1003,7 @@ def rollout_oracle_dp(sim_cfg: SimConfig,
         print('[oracle debug] switch costs at first step')
         for i, s in enumerate(strategies):
             print(
-                'target', i, (s['tp'], s['pp']),
+                'target', i, strategy_label(s),
                 'reshard_s=', s.get('reshard_wall_time_s', sim_cfg.switch_time_s),
                 'switch_g_from_0=', switch_cost[0, 0, i],
             )
@@ -1191,7 +1204,7 @@ def rollout_oracle_dp(sim_cfg: SimConfig,
         print('actions:', actions)
         print(
             'strategy tuples:',
-            [(strategies[a]['tp'], strategies[a]['pp']) for a in actions],
+            [strategy_label(strategies[a]) for a in actions],
         )
 
     if not actions:
@@ -1297,7 +1310,7 @@ def rollout_oracle_dp(sim_cfg: SimConfig,
         print('actions:', actions)
         print(
             'strategy tuples:',
-            [(strategies[a]['tp'], strategies[a]['pp']) for a in actions],
+            [strategy_label(strategies[a]) for a in actions],
         )
         print('[oracle debug] replayed oracle after repair')
         print('carbon:', sim.total_carbon_g)
@@ -1544,7 +1557,7 @@ def plot_rollout(sim: CarbonSim,
                                     color=color, alpha=0.25)
         ax_strategy.set_yticks(range(len(sim_cfg.strategies)))
         ax_strategy.set_yticklabels(
-            [f"({s['tp']},{s['pp']})" for s in sim_cfg.strategies]
+            [strategy_label(s, include_dp=False) for s in sim_cfg.strategies]
         )
     ax_strategy.set_ylabel('Strategy')
     ax_strategy.grid(True, alpha=0.3)
@@ -1615,7 +1628,9 @@ def plot_comparison(rollouts: dict[str, CarbonSim],
         ax_carbon.plot(t_hist[-1], c_hist[-1], 'o', color=color, markersize=7)
 
     ax_strategy.set_yticks(range(n_strats))
-    ax_strategy.set_yticklabels([f"({s['tp']},{s['pp']})" for s in sim_cfg.strategies])
+    ax_strategy.set_yticklabels([
+        strategy_label(s, include_dp=False) for s in sim_cfg.strategies
+    ])
     ax_strategy.set_ylabel('Strategy')
     ax_strategy.grid(True, alpha=0.3)
 
@@ -1814,7 +1829,7 @@ def print_feasibility_summary(model_name: str,
     print("\nFeasible:")
     for s in strategies_after:
         print(
-            f"  tp={s['tp']}, pp={s['pp']}, dp={s.get('dp')}, "
+            f"  {strategy_label(s)}, "
             f"est_mem={s.get('estimated_memory_gb', float('nan')):.1f}GB"
         )
 
@@ -1822,7 +1837,7 @@ def print_feasibility_summary(model_name: str,
         print("\nRemoved:")
         for s in removed_strategies:
             print(
-                f"  tp={s['tp']}, pp={s['pp']}, dp={s.get('dp')}, "
+                f"  {strategy_label(s)}, "
                 f"est_mem={s.get('estimated_memory_gb', float('nan')):.1f}GB, "
                 f"reason={s.get('feasibility_reason', 'unknown')}"
             )
@@ -1841,7 +1856,7 @@ def print_feasibility_summary(model_name: str,
         )
         print(
             f"[warning] Remaining strategy: "
-            f"tp={s['tp']}, pp={s['pp']}, dp={s.get('dp')}"
+            f"{strategy_label(s)}"
         )
 
     else:
@@ -1867,8 +1882,9 @@ def strategy_dominance_report(cfg: SimConfig, ci_samples=(40, 110, 260)) -> dict
         thru = float(s['throughput_tok_s'])
         j_per_tok = s['power_w'] / thru
         rows.append({
-            'label': f"(tp={s['tp']},pp={s['pp']},dp={s.get('dp', cfg.n_gpus // (s['tp'] * s['pp']))})",
+            'label': strategy_label(s),
             'tp': s['tp'], 'pp': s['pp'],
+            'micro_batch_size': s.get('micro_batch_size'),
             'power_w': s['power_w'],
             'throughput': thru,
             'j_per_tok': j_per_tok,

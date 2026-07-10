@@ -3,13 +3,15 @@
 train_profile.py
 ----------------
 Launcher for profile_strategies.py — measures (power_w, step_time_s)
-for each (TP, PP) config in a profile menu and writes a calibration
-JSON whose 'strategies' array can be pasted into scheduler_config.json.
+for each (TP, PP, micro_batch_size) case in a profile menu and writes a
+calibration JSON whose 'strategies' array can be pasted into
+scheduler_config.json.
 
 Mirrors train_online_elastic.py's apptainer + torchrun pattern; reuses
-its MODEL_CONFIGS dict and build_apptainer_prefix helper.
+its MODEL_CONFIGS dict, local 4-GPU L40S defaults, and
+build_apptainer_prefix helper.
 
-How it works (per config in the menu):
+How it works (per case in the menu):
 
 1. RESHARD          destroy old parallel state, initialize new (TP, PP).
                     MPU-only, ~50ms.
@@ -70,15 +72,32 @@ import os
 import subprocess
 import sys
 
-from train_online_elastic import MODEL_CONFIGS, build_apptainer_prefix
+from train_online_elastic import (
+    DEFAULT_CONTAINER_BINDS,
+    DEFAULT_CONTAINER_IMAGE,
+    DEFAULT_MEGATRON_DIR,
+    DEFAULT_NUM_GPUS,
+    MODEL_CONFIGS,
+    build_apptainer_prefix,
+)
+
+
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_PROFILE_MENU = os.path.join(
+    PROJECT_DIR,
+    "calibrations",
+    "profile_menu_4gpu_l40s_microbatch.json",
+)
+DEFAULT_WORK_DIR = "/u/data3/wat29/carbon_training/profile"
+DEFAULT_MICRO_BATCH_SIZE = 2
 
 
 # ── Menu peeking ─────────────────────────────────────────────
 
-def read_first_tp_pp_from_menu(profile_menu_path: str):
-    """Pull (tp, pp) of the first menu entry. Megatron requires initial
+def read_profile_menu_preview(profile_menu_path: str):
+    """Pull first-case metadata. Megatron requires initial
     parallel sizes on the command line; the profiler reshards to each
-    subsequent config in-process."""
+    subsequent case in-process."""
     with open(profile_menu_path) as f:
         raw = json.load(f)
     if isinstance(raw, dict):
@@ -90,7 +109,23 @@ def read_first_tp_pp_from_menu(profile_menu_path: str):
         raise ValueError(
             f"{profile_menu_path}: first entry needs 'tp' and 'pp'"
         )
-    return int(s0['tp']), int(s0['pp'])
+
+    first_micro_batch_size = None
+    if 'micro_batch_size' in s0:
+        first_micro_batch_size = int(s0['micro_batch_size'])
+        if first_micro_batch_size <= 0:
+            raise ValueError(
+                f"{profile_menu_path}: first entry micro_batch_size "
+                "must be positive"
+            )
+
+    micro_batch_sizes = sorted({
+        int(s['micro_batch_size'])
+        for s in raw
+        if isinstance(s, dict) and 'micro_batch_size' in s
+    })
+
+    return int(s0['tp']), int(s0['pp']), first_micro_batch_size, micro_batch_sizes
 
 
 # ── Command building ─────────────────────────────────────────
@@ -163,15 +198,17 @@ def build_profile_cmd(cfg, profile_menu_path, output_path,
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Profile each (TP, PP) config; emit calibration JSON."
+        description="Profile each (TP, PP, MBS) case; emit calibration JSON."
     )
     ap.add_argument('--model', required=True,
                     choices=list(MODEL_CONFIGS.keys()))
-    ap.add_argument('--profile-menu', required=True,
-                    help='JSON listing {"tp": int, "pp": int} per config')
-    ap.add_argument('--output', required=True,
-                    help='Where to write calibration JSON')
-    ap.add_argument('--num-gpus', type=int, required=True)
+    ap.add_argument('--profile-menu', default=DEFAULT_PROFILE_MENU,
+                    help='JSON listing {"tp": int, "pp": int, '
+                         '"micro_batch_size": int} per case')
+    ap.add_argument('--output', default=None,
+                    help='Where to write calibration JSON. Defaults to '
+                         'calibrations/calibration_<model>_4gpu_l40s_microbatch.json')
+    ap.add_argument('--num-gpus', type=int, default=DEFAULT_NUM_GPUS)
     # Convergence-based warmup parameters
     ap.add_argument('--warmup-min-seconds', type=float, default=10.0,
                     help='Minimum warmup before convergence check fires.')
@@ -184,17 +221,29 @@ def main():
                     help='Fractional tolerance for step-time convergence '
                          '(default 0.02 = ±2%%).')
     ap.add_argument('--measure-seconds', type=float, default=60.0)
-    ap.add_argument('--micro-batch-size',  type=int, default=2)
+    ap.add_argument('--micro-batch-size',  type=int, default=None,
+                    help='Default MBS for old-format menu entries that omit '
+                         'micro_batch_size. If omitted, uses the first menu '
+                         'MBS when present, otherwise 2.')
     ap.add_argument('--global-batch-size', type=int, default=16)
     ap.add_argument('--seq-length', type=int, default=None,
                     help='Override default seq_length for the model')
-    ap.add_argument('--megatron-dir', default='/opt/megatron-lm',
+    ap.add_argument('--megatron-dir', default=DEFAULT_MEGATRON_DIR,
                     help='Megatron-LM path inside the container')
     ap.add_argument('--container-image',
-                    default='/bgfs/stephenlee/wat29/nemo_2504.sif')
-    ap.add_argument('--container-bind', action='append', default=[])
-    ap.add_argument('--work-dir', default='/tmp/profile_workdir')
+                    default=DEFAULT_CONTAINER_IMAGE)
+    ap.add_argument('--container-bind', action='append', default=None)
+    ap.add_argument('--work-dir', default=DEFAULT_WORK_DIR)
+    ap.add_argument('--dry-run', action='store_true',
+                    help='Print the Apptainer/torchrun command without running it.')
     args = ap.parse_args()
+
+    if args.output is None:
+        args.output = os.path.join(
+            PROJECT_DIR,
+            "calibrations",
+            f"calibration_{args.model}_4gpu_l40s_microbatch.json",
+        )
 
     # Validate inputs early
     if not os.path.isfile(args.profile_menu):
@@ -210,12 +259,16 @@ def main():
 
     cfg = MODEL_CONFIGS[args.model]
     seq_length = args.seq_length or cfg["seq_length"]
-    first_tp, first_pp = read_first_tp_pp_from_menu(args.profile_menu)
+    first_tp, first_pp, first_mbs, menu_mbs_values = read_profile_menu_preview(
+        args.profile_menu
+    )
+    micro_batch_size = (
+        args.micro_batch_size
+        if args.micro_batch_size is not None
+        else first_mbs or DEFAULT_MICRO_BATCH_SIZE
+    )
 
-    binds = list(args.container_bind) or [
-        "/bgfs/stephenlee/wat29:/bgfs/stephenlee/wat29",
-        f"/bgfs/stephenlee/wat29/Megatron-LM:{args.megatron_dir}",
-    ]
+    binds = list(args.container_bind or DEFAULT_CONTAINER_BINDS)
 
     inner = build_profile_cmd(
         cfg=cfg,
@@ -230,7 +283,7 @@ def main():
         warmup_window=args.warmup_window,
         warmup_tol=args.warmup_tol,
         measure_seconds=args.measure_seconds,
-        micro_batch=args.micro_batch_size,
+        micro_batch=micro_batch_size,
         global_batch=args.global_batch_size,
         seq_length=seq_length,
     )
@@ -243,6 +296,17 @@ def main():
     print(f"  GPUs:            {args.num_gpus}")
     print(f"  Profile menu:    {args.profile_menu}")
     print(f"  Initial TP/PP:   {first_tp}/{first_pp}")
+    print(f"  Initial MBS:     {first_mbs if first_mbs is not None else micro_batch_size}")
+    print(f"  Default MBS:     {micro_batch_size}")
+    if menu_mbs_values:
+        print(f"  Menu MBS values: {menu_mbs_values}")
+    else:
+        print("  Menu MBS values: old format; using Default MBS for every case")
+    print(f"  Global batch:    {args.global_batch_size}")
+    print(f"  Seq length:      {seq_length}")
+    print(f"  Container:       {args.container_image}")
+    print(f"  Megatron dir:    {args.megatron_dir}")
+    print(f"  Work dir:        {args.work_dir}")
     print(f"  Warmup min/max:  {args.warmup_min_seconds}s / "
           f"{args.warmup_max_seconds}s")
     print(f"  Convergence:     window={args.warmup_window} iters, "
@@ -252,6 +316,10 @@ def main():
     print('=' * 70)
     print('Full cmd:', ' '.join(full_cmd), flush=True)
     print('=' * 70, flush=True)
+
+    if args.dry_run:
+        print("Dry run requested; not launching profiler.")
+        return
 
     rc = subprocess.call(full_cmd)
     print(f"\nProfiler exited with rc={rc}")

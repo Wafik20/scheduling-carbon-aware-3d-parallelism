@@ -13,7 +13,7 @@ the model catalog to:
 
 The default token grid scales from:
 
-    1B, 2B, ..., 8B
+    1B, 2B, ..., 30B
 
 The largest Llama 3B budgets exceed the clean non-wrapping random-offset room in
 the May 2024 trace under the evaluator's deadline slack accounting. For that
@@ -25,7 +25,6 @@ available random-offset room in the manifest; use --offset-sampling shared and
 from __future__ import annotations
 
 import argparse
-import csv
 import subprocess
 import sys
 import time
@@ -54,15 +53,8 @@ DEFAULT_MODELS: tuple[str, ...] = (
     "llama3b",
 )
 
-DEFAULT_TOKEN_BUDGETS: tuple[int, ...] = (
-    1_000_000_000,
-    2_000_000_000,
-    3_000_000_000,
-    4_000_000_000,
-    5_000_000_000,
-    6_000_000_000,
-    7_000_000_000,
-    8_000_000_000,
+DEFAULT_TOKEN_BUDGETS: tuple[int, ...] = tuple(
+    i * 1_000_000_000 for i in range(1, 31)
 )
 
 MODEL_ALIASES = {
@@ -111,7 +103,7 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=REPO_ROOT
         / "runs"
-        / "region_may2024_model_scaling_1b_to_8b_25slack_per_run_offsets",
+        / "region_may2024_model_scaling_1b_to_30b_25slack_per_run_offsets",
         help="Root output directory for all runs.",
     )
     parser.add_argument(
@@ -184,7 +176,7 @@ def parse_args() -> argparse.Namespace:
         nargs="+",
         type=base.parse_token_budget,
         default=list(DEFAULT_TOKEN_BUDGETS),
-        help="Shared fixed token budgets for every model, e.g. 1b 2b ... 8b.",
+        help="Shared fixed token budgets for every model, e.g. 1b 2b ... 30b.",
     )
     parser.add_argument(
         "--slack-frac",
@@ -265,7 +257,7 @@ def parse_args() -> argparse.Namespace:
         help=(
             "How to handle model/token pairs whose deadline leaves no random "
             "offset room in the non-wrapping May trace. The default keeps the "
-            "1B-8B grid and lets the evaluator pin those runs to offset 0; "
+            "1B-30B grid and lets the evaluator pin those runs to offset 0; "
             "strict rejects them."
         ),
     )
@@ -364,8 +356,7 @@ def profile_summary(model: base.ModelSpec) -> dict[str, object]:
         "save_s",
         "warmup_iters",
     }
-    with model.profile_csv.open(newline="") as handle:
-        rows = list(csv.DictReader(handle))
+    rows = base.load_strategy_profile_rows(model.profile_csv)
     if not rows:
         raise ValueError(f"Strategy profile has no rows: {model.profile_csv}")
 
@@ -412,8 +403,9 @@ def write_model_catalog(path: Path, models: list[base.ModelSpec]) -> pd.DataFram
 def oracle_token_quantum_for_model(tokens: int, profile_csv: Path) -> int:
     """Choose a DP token quantum that can advance on one-hour steps."""
     quantum = base.oracle_token_quantum(tokens)
-    profile = pd.read_csv(profile_csv)
-    min_hourly_tokens = float(profile["throughput_tok_s"].min()) * 3600.0
+    rows = base.load_strategy_profile_rows(profile_csv)
+    min_throughput = min(float(row["throughput_tok_s"]) for row in rows)
+    min_hourly_tokens = min_throughput * 3600.0
     if quantum < min_hourly_tokens:
         return quantum
 
@@ -512,7 +504,7 @@ def main() -> int:
         elif shared_offset_window_h <= 0.0:
             raise ValueError(
                 "The selected grid leaves no shared random-offset window. "
-                "Use --offset-sampling per-run for the 1B-8B scaling sweep, "
+                "Use --offset-sampling per-run for the 1B-30B scaling sweep, "
                 "reduce --token-budgets, use a longer trace, or pass "
                 "--allow-short-trace to intentionally pin every shared-offset "
                 "run to offset 0."
