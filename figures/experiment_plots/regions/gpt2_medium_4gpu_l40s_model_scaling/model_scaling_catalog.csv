@@ -1,2 +1,0 @@
-model,model_label,evaluator_model_name,strategy_profile_csv,n_gpus,seq_length,strategy_count,fastest_throughput_tok_s,slowest_throughput_tok_s,min_power_w,max_power_w
-gpt2_medium,GPT-2 Medium,gpt2_medium,calibrations/calibration_gpt2_medium_4gpu_l40s_microbatch.json,4,1024,12,79548.75,11344.34,476.9,925.5

@@ -62,8 +62,8 @@ def parse_args():
                    help='Number of GPUs represented by the strategy profile.')
     p.add_argument('--strategy-profile-csv', default=None,
                    help='Optional strategy_profile.csv or profiler calibration '
-                        '.json to use instead of the embedded default GPT-2 '
-                        'profile.')
+                        '.json to use instead of the synthetic demonstration '
+                        'profile (not hardware measurements).' )
     p.add_argument('--strategy-profile', default=None,
                    help='Alias for --strategy-profile-csv. Accepts either the '
                         'legacy CSV or new calibration JSON.')
@@ -1319,6 +1319,8 @@ def main():
     strategy_profile_path = args.strategy_profile or args.strategy_profile_csv
     if strategy_profile_path is not None:
         cfg.strategies = load_strategy_profile(strategy_profile_path)
+    else:
+        print("Using synthetic demonstration strategies, not hardware measurements.")
 
     dynamic_scheduling_applicable = len(cfg.strategies) >= 2
     if not dynamic_scheduling_applicable:

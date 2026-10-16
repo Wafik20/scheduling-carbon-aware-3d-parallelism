@@ -9,14 +9,10 @@ Cluster-specific settings (container path, bind mounts, GPU count) are
 passed through to train.py and can also be set via environment variables.
 
 Usage:
-    # Local (tintin)
-    python run_all_configs.py --model all --num-gpus 4
-
-    # Pitt CRC
-    python run_all_configs.py --model all --num-gpus 4 \
-        --container-image /bgfs/stephenlee/wat29/nemo.sif \
-        --container-bind /bgfs/stephenlee/wat29/Megatron-LM:/opt/megatron-lm \
-        --container-bind /ihome/stephenlee/wat29:/ihome/stephenlee/wat29
+    python scripts/run_all_configs.py --model gpt2 --num-gpus 4 --dry-run
+    python scripts/run_all_configs.py --model gpt2 --num-gpus 4 \
+        --container-image /path/to/nemo.sif \
+        --container-bind /path/to/Megatron-LM:/opt/megatron-lm
 """
 
 import argparse
@@ -29,35 +25,11 @@ from datetime import datetime
 # ── Defaults (same as train.py) ──────────────────────────────────────
 DEFAULT_NUM_GPUS = 4
 
-# Architecture constraints (must stay in sync with train.py MODEL_CONFIGS)
-MODEL_CONSTRAINTS = {
-    "gpt2": {
-        "num_layers": 12,
-        "num_attention_heads": 12,
-        "num_query_groups": None,
-    },
-    "gpt2_medium": {
-        "num_layers": 24,
-        "num_attention_heads": 16,
-        "num_query_groups": None,
-    },
-    "gpt2_large": {
-        "num_layers": 36,
-        "num_attention_heads": 20,
-        "num_query_groups": None,
-    },
-    "llama_1b": {
-        "num_layers": 16,
-        "num_attention_heads": 32,
-        "num_query_groups": 8,
-    },
-    "llama_3b": {
-        "num_layers": 28,
-        "num_attention_heads": 24,
-        "num_query_groups": 8,
-    },
-}
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, REPO_ROOT)
+from train import MODEL_CONFIGS
 
+MODEL_CONSTRAINTS = MODEL_CONFIGS
 
 def divisors(n):
     """Return sorted list of divisors of n."""
@@ -129,7 +101,8 @@ def main():
     # Build plan: list of (model, configs)
     plan = []
     for model in models:
-        cfgs = sorted(valid_configs(num_gpus, model))
+        cfgs = sorted(cfg for cfg in valid_configs(num_gpus, model)
+                      if args.global_batch_size % (args.micro_batch_size * cfg[2]) == 0)
         if cfgs:
             plan.append((model, cfgs))
 

@@ -1,6 +1,6 @@
 """Carbon-aware training-strategy selection as a Gymnasium environment.
 
-The environment wraps an embedded measured strategy profile: each hour-long
+The environment wraps an synthetic demonstration strategy profile by default: each hour-long
 decision step, the agent picks a TP/PP strategy. Strategy switches pay the
 target strategy's measured reshard cost when available. Energy and carbon are
 integrated over the real hour boundaries of the carbon-intensity trace, so the
@@ -78,9 +78,9 @@ class SimConfig:
     tokens_per_iter: int
     n_gpus: int = 8
     idle_power_per_gpu_w: float = 50.0
-    container_startup_s: float = 35.0
-    fresh_build_s: float = 0.23
-    switch_time_s: float = 64.58
+    container_startup_s: float = 0.0
+    fresh_build_s: float = 0.0
+    switch_time_s: float = 0.0
     first_switch_cache_miss_s: float = 0.0
 
     @property
@@ -1666,77 +1666,16 @@ def plot_training_curve(returns: list[float], window: int = 20,
 
 
 # ---------------------------------------------------------------------------
-# Default config matching the latest gpt2_large_8gpu measured profile
+# Synthetic demonstration profile; not hardware measurements.
 # ---------------------------------------------------------------------------
 
-DEFAULT_WARMUP_WALL_S = 20.0
-DEFAULT_SAVE_S = 25.0
-
+DEFAULT_WARMUP_WALL_S = 0.0
+DEFAULT_SAVE_S = 0.0
 DEFAULT_STRATEGIES = [
-    {
-        'tp': 1, 'pp': 1, 'dp': 8,
-        'power_w': 1885.8,
-        'step_time_s': 0.1500,
-        'throughput_tok_s': 109256.0,
-        'joules_per_token': 0.017260,
-        'reshard_wall_time_s': 66.1,
-    },
-    {
-        'tp': 1, 'pp': 2, 'dp': 4,
-        'power_w': 1538.6,
-        'step_time_s': 0.2091,
-        'throughput_tok_s': 78342.0,
-        'joules_per_token': 0.019640,
-        'reshard_wall_time_s': 99.2,
-    },
-    {
-        'tp': 1, 'pp': 4, 'dp': 2,
-        'power_w': 1383.1,
-        'step_time_s': 0.2491,
-        'throughput_tok_s': 65780.0,
-        'joules_per_token': 0.021026,
-        'reshard_wall_time_s': 76.0,
-    },
-    {
-        'tp': 2, 'pp': 1, 'dp': 4,
-        'power_w': 1404.7,
-        'step_time_s': 0.3139,
-        'throughput_tok_s': 52190.0,
-        'joules_per_token': 0.026916,
-        'reshard_wall_time_s': 34.3,
-    },
-    {
-        'tp': 2, 'pp': 2, 'dp': 2,
-        'power_w': 1264.8,
-        'step_time_s': 0.3881,
-        'throughput_tok_s': 42215.0,
-        'joules_per_token': 0.029960,
-        'reshard_wall_time_s': 62.8,
-    },
-    {
-        'tp': 2, 'pp': 4, 'dp': 1,
-        'power_w': 1186.0,
-        'step_time_s': 0.4493,
-        'throughput_tok_s': 36463.0,
-        'joules_per_token': 0.032527,
-        'reshard_wall_time_s': 47.8,
-    },
-    {
-        'tp': 4, 'pp': 1, 'dp': 2,
-        'power_w': 1427.8,
-        'step_time_s': 0.6553,
-        'throughput_tok_s': 25001.0,
-        'joules_per_token': 0.057110,
-        'reshard_wall_time_s': 54.6,
-    },
-    {
-        'tp': 4, 'pp': 2, 'dp': 1,
-        'power_w': 1321.3,
-        'step_time_s': 0.7085,
-        'throughput_tok_s': 23127.0,
-        'joules_per_token': 0.057133,
-        'reshard_wall_time_s': 75.8,
-    },
+    {'tp': 1, 'pp': 1, 'dp': 8, 'power_w': 2000.0,
+     'throughput_tok_s': 100000.0, 'reshard_wall_time_s': 0.0},
+    {'tp': 1, 'pp': 2, 'dp': 4, 'power_w': 1000.0,
+     'throughput_tok_s': 40000.0, 'reshard_wall_time_s': 0.0},
 ]
 
 
@@ -1982,7 +1921,7 @@ def default_config(pretraining_tokens: int = 3_000_000_000,
         s['save_s'] = s.get('save_s', DEFAULT_SAVE_S)
         s['warmup_iters'] = s.get(
             'warmup_iters',
-            max(1, round(
+            max(0, round(
                 s['warmup_wall_s'] * s['throughput_tok_s'] / tokens_per_iter
             )),
         )
@@ -1992,6 +1931,6 @@ def default_config(pretraining_tokens: int = 3_000_000_000,
         pretraining_tokens=pretraining_tokens,
         tokens_per_iter=tokens_per_iter,
         n_gpus=n_gpus,
-        switch_time_s=64.58,
+        switch_time_s=0.0,
         first_switch_cache_miss_s=0.0,
     )

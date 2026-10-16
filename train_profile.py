@@ -83,12 +83,7 @@ from train_online_elastic import (
 
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_PROFILE_MENU = os.path.join(
-    PROJECT_DIR,
-    "calibrations",
-    "profile_menu_4gpu_l40s_microbatch.json",
-)
-DEFAULT_WORK_DIR = "/u/data3/wat29/carbon_training/profile"
+DEFAULT_WORK_DIR = "runs/profile"
 DEFAULT_MICRO_BATCH_SIZE = 2
 
 
@@ -202,12 +197,12 @@ def main():
     )
     ap.add_argument('--model', required=True,
                     choices=list(MODEL_CONFIGS.keys()))
-    ap.add_argument('--profile-menu', default=DEFAULT_PROFILE_MENU,
+    ap.add_argument('--profile-menu', required=True,
                     help='JSON listing {"tp": int, "pp": int, '
                          '"micro_batch_size": int} per case')
     ap.add_argument('--output', default=None,
                     help='Where to write calibration JSON. Defaults to '
-                         'calibrations/calibration_<model>_4gpu_l40s_microbatch.json')
+                         'runs/calibrations/calibration_<model>_<num-gpus>gpu.json')
     ap.add_argument('--num-gpus', type=int, default=DEFAULT_NUM_GPUS)
     # Convergence-based warmup parameters
     ap.add_argument('--warmup-min-seconds', type=float, default=10.0,
@@ -231,7 +226,7 @@ def main():
     ap.add_argument('--megatron-dir', default=DEFAULT_MEGATRON_DIR,
                     help='Megatron-LM path inside the container')
     ap.add_argument('--container-image',
-                    default=DEFAULT_CONTAINER_IMAGE)
+                    default=DEFAULT_CONTAINER_IMAGE, required=not DEFAULT_CONTAINER_IMAGE)
     ap.add_argument('--container-bind', action='append', default=None)
     ap.add_argument('--work-dir', default=DEFAULT_WORK_DIR)
     ap.add_argument('--dry-run', action='store_true',
@@ -241,8 +236,8 @@ def main():
     if args.output is None:
         args.output = os.path.join(
             PROJECT_DIR,
-            "calibrations",
-            f"calibration_{args.model}_4gpu_l40s_microbatch.json",
+            "runs", "calibrations",
+            f"calibration_{args.model}_{args.num_gpus}gpu.json",
         )
 
     # Validate inputs early

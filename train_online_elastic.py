@@ -29,20 +29,15 @@ Optional overrides:
     --bucket-seconds      <float>   Wall seconds per CI forecast row (default 3600)
 
 Usage:
-    python train_online_elastic.py --model gpt2_medium \\
-        --scheduler-config calibrations/calibration_gpt2_medium_4gpu.json \\
-        --carbon-forecast data/carbon_synthetic_dataset.csv \\
-        --train-iters 100000 \\
-        --switch-power-w 200 \\
-        --deadline-seconds 14400 \\
-        --lookahead-steps 8000 \\
-        --decide-every 1000
+    python train_online_elastic.py --model gpt2 \
+        --scheduler-config runs/calibrations/calibration_gpt2_4gpu.json \
+        --carbon-forecast /path/to/carbon.csv --train-iters 1000 \
+        --container-image /path/to/nemo.sif \
+        --container-bind /path/to/Megatron-LM:/opt/megatron-lm \
+        --switch-power-w 200 --deadline-seconds 3600 \
+        --lookahead-steps 100 --decide-every 50
 
-    # Dry run:
-    python train_online_elastic.py --model gpt2 \\
-        --scheduler-config scheduler_config.json \\
-        --carbon-forecast data/carbon_synthetic_dataset.csv \\
-        --train-iters 5000 --dry-run
+    Add --dry-run to print the launch command without running training.
 """
 
 import argparse
@@ -66,16 +61,13 @@ from carbon_aware_3d.compute_power import PowerMonitor
 
 # ── Cluster defaults ─────────────────────────────────────────
 DEFAULT_NUM_GPUS = 4
-DEFAULT_CONTAINER_IMAGE = "/u/data3/wat29/nemo.sif"
-DEFAULT_CONTAINER_BINDS = [
-    "/u/data3/wat29:/u/data3/wat29",
-    "/u/data3/wat29/Megatron-LM:/opt/megatron-lm",
-]
+DEFAULT_CONTAINER_IMAGE = os.environ.get("CONTAINER_IMAGE")
+DEFAULT_CONTAINER_BINDS = []
 DEFAULT_MEGATRON_DIR = "/opt/megatron-lm"
 # Distinct from train_elastic.py's work dir so offline-planned and
 # online-decided runs don't overwrite each other's phases.json /
 # elastic_results.json / checkpoints.
-DEFAULT_WORK_DIR = "/u/data3/wat29/carbon_training/online_elastic"
+DEFAULT_WORK_DIR = "runs/train_online_elastic"
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = PROJECT_DIR
@@ -659,7 +651,7 @@ def main():
     parser.add_argument("--global-batch-size", type=int, default=16)
     parser.add_argument("--seq-length", type=int, default=None)
     parser.add_argument("--num-gpus", type=int, default=DEFAULT_NUM_GPUS)
-    parser.add_argument("--container-image", type=str, default=DEFAULT_CONTAINER_IMAGE)
+    parser.add_argument("--container-image", type=str, default=DEFAULT_CONTAINER_IMAGE, required=not DEFAULT_CONTAINER_IMAGE)
     parser.add_argument("--container-bind", type=str, action="append", default=None)
     parser.add_argument("--megatron-dir", type=str, default=DEFAULT_MEGATRON_DIR)
     parser.add_argument("--work-dir", type=str, default=DEFAULT_WORK_DIR)
@@ -710,7 +702,7 @@ def main():
         scheduler_config_path, carbon_forecast_path,
         args.train_iters,
         args.deadline_seconds,
-        args.bucket_seconds or 60.0,   # default 60s for short experiments
+        args.bucket_seconds or 3600.0,
         args.work_dir,
     )
     first_tp, first_pp = read_initial_tp_pp(scheduler_config_path)

@@ -1,7 +1,0 @@
-model,model_label,evaluator_model_name,strategy_profile_csv,n_gpus,seq_length,strategy_count,fastest_throughput_tok_s,slowest_throughput_tok_s,min_power_w,max_power_w
-gpt2,GPT-2,gpt2,runs/fixed_dp_25slack_gpt2_3p5b/strategy_profile.csv,8,1024,8,109256.0,23127.0,1186.0,1885.8
-gpt2_medium,GPT-2 Medium,gpt2_medium,runs/exp3_gpt2_medium_may2024_shift_dp/strategy_profile.csv,4,1024,2,79430.8,38382.2,656.3,855.4
-gpt2_large,GPT-2 Large,gpt2_large,runs/exp3_gpt2_large_may2024_shift_dp/strategy_profile.csv,4,1024,6,21779.3,7564.7,682.8,1021.7
-llama1b,Llama 1B,llama_1b,runs/fixed_dp_25slack_llama1b_3b/strategy_profile.csv,4,256,6,9679.0,4267.5,562.1,872.0
-llama2b,Llama 2B,llama_2b,runs/exp1_llama_2b_may2024/strategy_profile.csv,4,256,6,6129.9,2987.7,619.6,904.5
-llama3b,Llama 3B,llama_3b,runs/exp1_llama_3b_may2024/strategy_profile.csv,4,256,6,4825.5,2956.5,713.0,937.7

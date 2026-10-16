@@ -17,7 +17,6 @@ dependencies = [
 [project.optional-dependencies]
 power = ["nvidia-ml-py"]
 rl = ["gymnasium", "stable-baselines3"]
-data = ["requests", "python-dotenv"]
 profile = ["torch", "transformers"]
 dev = ["pytest"]
 

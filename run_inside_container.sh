@@ -1,22 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-# NCCL setup.
-# Pin to eth0 explicitly. The 10.201.x.x subnet is uniform across all
-# a100_multi nodes; ib0 (10.203.x.x) is not exposed on every node in
-# this partition, so exclusion-only patterns produce heterogeneous
-# interface lists that deadlock at the first cross-rank connect.
-
-export NCCL_IB_DISABLE="${NCCL_IB_DISABLE:-1}"
-export NCCL_NET="${NCCL_NET:-Socket}"
-export NCCL_SOCKET_IFNAME="${NCCL_SOCKET_IFNAME:-eth0}"
-export NCCL_DEBUG="${NCCL_DEBUG:-INFO}"
-export NCCL_DEBUG_SUBSYS="${NCCL_DEBUG_SUBSYS:-INIT,NET,GRAPH}"
-export TORCH_NCCL_ASYNC_ERROR_HANDLING="${TORCH_NCCL_ASYNC_ERROR_HANDLING:-1}"
-export PYTHONUNBUFFERED="${PYTHONUNBUFFERED:-1}"
-
-# Clear deprecated variable if inherited from old runs.
-unset NCCL_ASYNC_ERROR_HANDLING || true
+# Called once per node inside a container with torchrun and Megatron installed.
+# Leave NCCL transport/interface selection to the site or caller.
+: "${MEGATRON_DIR:?Set MEGATRON_DIR to the in-container Megatron-LM directory}"
+: "${SLURM_NNODES:?Set SLURM_NNODES to the number of nodes}"
+: "${SLURM_NODEID:?Set SLURM_NODEID to the node rank}"
+: "${GPUS_PER_NODE:?Set GPUS_PER_NODE}"
+: "${MASTER_ADDR:?Set MASTER_ADDR to the rendezvous host}"
+: "${MASTER_PORT:?Set MASTER_PORT to the rendezvous port}"
+export PYTHONUNBUFFERED=1
 
 TP=${TP:-2}
 PP=${PP:-2}
@@ -35,20 +28,7 @@ echo "Time: $(date)"
 echo "TP=$TP PP=$PP layers=$NUM_LAYERS hidden=$HIDDEN heads=$HEADS"
 echo "MBS=$MICRO_BATCH GBS=$GLOBAL_BATCH iters=$TRAIN_ITERS log_interval=$LOG_INTERVAL"
 echo "MASTER=$MASTER_ADDR:$MASTER_PORT node_rank=$SLURM_NODEID"
-echo "NCCL: IB_DISABLE=$NCCL_IB_DISABLE NET=$NCCL_NET SOCKET_IFNAME=$NCCL_SOCKET_IFNAME DEBUG=$NCCL_DEBUG SUBSYS=$NCCL_DEBUG_SUBSYS"
-echo "----- Network diagnostics -----"
-echo "Hostname:        $(hostname)"
-echo "Hostname (FQDN): $(hostname -f 2>/dev/null || echo unknown)"
-echo "Resolved IPs:"
-(getent hosts "$(hostname)" 2>/dev/null | sed 's/^/  /' || echo "  (getent failed)")
-echo "Master resolution:"
-(getent hosts "$MASTER_ADDR" 2>/dev/null | sed 's/^/  /' || echo "  (could not resolve $MASTER_ADDR)")
-echo "Addresses on the pinned interface ($NCCL_SOCKET_IFNAME):"
-(cat /sys/class/net/$NCCL_SOCKET_IFNAME/address 2>/dev/null | sed 's/^/  MAC: /' || true)
-(awk -v iface="$NCCL_SOCKET_IFNAME" '$2 == iface {print "  v4 hex: " $3}' /proc/net/route 2>/dev/null || true)
-echo "=========================================="
 echo "Starting torchrun at $(date)"
-echo "=========================================="
 
 torchrun \
     --nnodes="$SLURM_NNODES" \
@@ -56,7 +36,7 @@ torchrun \
     --node_rank="$SLURM_NODEID" \
     --master_addr="$MASTER_ADDR" \
     --master_port="$MASTER_PORT" \
-    /opt/megatron-lm/pretrain_gpt.py \
+    "$MEGATRON_DIR/pretrain_gpt.py" \
     --tensor-model-parallel-size "$TP" \
     --pipeline-model-parallel-size "$PP" \
     --num-layers "$NUM_LAYERS" \

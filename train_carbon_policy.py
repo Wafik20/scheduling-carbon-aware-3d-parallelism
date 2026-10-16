@@ -56,14 +56,6 @@ def parse_args():
     return p.parse_args()
 
 
-class EpisodeReturnCallback:
-    """Lightweight callback shim: SB3 callbacks subclass BaseCallback. We do
-    that below in `build_callback`. This class exists only as a placeholder so
-    that the module can be imported without sb3 installed.
-    """
-    pass
-
-
 def build_callback(log_dir: Path):
     from stable_baselines3.common.callbacks import BaseCallback
 
@@ -120,11 +112,12 @@ def main():
         global_batch_size=args.global_batch_size,
         seq_length=args.seq_length,
     )
+    print('Using synthetic demonstration strategies, not hardware measurements.')
     print(f'  {cfg.pretraining_tokens:,} tokens, {len(cfg.strategies)} strategies')
 
     # Estimated reference: best static (1,1) carbon for offset 0
     from carbon_aware_3d.carbon_aware_env import rollout_static
-    static_sims = [rollout_static(cfg, trace_t, trace_ci, 0.0, i)
+    static_sims = [rollout_static(cfg, trace_t, trace_ci, 0.0, i, wrap_trace=args.wrap_trace)
                    for i in range(len(cfg.strategies))]
     print('Reference static rollouts at offset 0:')
     for i, sim in enumerate(static_sims):

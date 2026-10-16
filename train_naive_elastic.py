@@ -35,19 +35,8 @@ from train_online_elastic import (
 )
 
 
-CARBON_FORECAST_PATH = (
-    "/bgfs/stephenlee/wat29/scheduling-carbon-aware-3d-parallelism/"
-    "data/carbon_week.csv"
-)
-
-DEFAULT_CONTAINER_BINDS = [
-    "/bgfs/stephenlee/wat29:/bgfs/stephenlee/wat29",
-    "/bgfs/stephenlee/wat29/Megatron-LM:/opt/megatron-lm",
-]
-DEFAULT_WORK_DIR = (
-    "/bgfs/stephenlee/wat29/scheduling-carbon-aware-3d-parallelism/"
-    "runs/naive_elastic"
-)
+DEFAULT_CONTAINER_BINDS = []
+DEFAULT_WORK_DIR = "runs/naive_elastic"
 DEFAULT_BUCKET_SECONDS = 150.0
 DEFAULT_DECIDE_EVERY = 500
 DEFAULT_MIN_DWELL_STEPS = 0
@@ -139,12 +128,13 @@ def main():
     parser.add_argument("--global-batch-size", type=int, default=16)
     parser.add_argument("--seq-length", type=int, default=None)
     parser.add_argument("--num-gpus", type=int, default=DEFAULT_NUM_GPUS)
-    parser.add_argument("--container-image", default=DEFAULT_CONTAINER_IMAGE)
+    parser.add_argument("--container-image", default=DEFAULT_CONTAINER_IMAGE,
+                        required=not DEFAULT_CONTAINER_IMAGE)
     parser.add_argument("--container-bind", action="append", default=None)
     parser.add_argument("--megatron-dir", default=DEFAULT_MEGATRON_DIR)
     parser.add_argument("--work-dir", default=DEFAULT_WORK_DIR)
     parser.add_argument("--elastic-ckpt-dir", default=None)
-    parser.add_argument("--carbon-forecast", default=CARBON_FORECAST_PATH)
+    parser.add_argument("--carbon-forecast", required=True)
     parser.add_argument("--bucket-seconds", type=float,
                         default=DEFAULT_BUCKET_SECONDS,
                         help="No-op for the naive scheduler (kept for "

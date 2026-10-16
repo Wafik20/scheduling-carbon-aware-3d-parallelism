@@ -31,13 +31,10 @@ from carbon_aware_3d.compute_power import PowerMonitor
 
 # ── Cluster defaults ─────────────────────────────────────────
 DEFAULT_NUM_GPUS = 4
-DEFAULT_CONTAINER_IMAGE = "/u/data3/wat29/nemo.sif"
-DEFAULT_CONTAINER_BINDS = [
-    "/u/data3/wat29:/u/data3/wat29",
-    "/u/data3/wat29/Megatron-LM:/opt/megatron-lm",
-]
+DEFAULT_CONTAINER_IMAGE = os.environ.get("CONTAINER_IMAGE")
+DEFAULT_CONTAINER_BINDS = []
 DEFAULT_MEGATRON_DIR = "/opt/megatron-lm"
-DEFAULT_WORK_DIR = "/u/data3/wat29/carbon_training/elastic"
+DEFAULT_WORK_DIR = "runs/train_elastic"
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = PROJECT_DIR
@@ -406,7 +403,7 @@ def main():
     parser.add_argument("--global-batch-size", type=int, default=16)
     parser.add_argument("--seq-length", type=int, default=None)
     parser.add_argument("--num-gpus", type=int, default=DEFAULT_NUM_GPUS)
-    parser.add_argument("--container-image", type=str, default=DEFAULT_CONTAINER_IMAGE)
+    parser.add_argument("--container-image", type=str, default=DEFAULT_CONTAINER_IMAGE, required=not DEFAULT_CONTAINER_IMAGE)
     parser.add_argument("--container-bind", type=str, action="append", default=None)
     parser.add_argument("--megatron-dir", type=str, default=DEFAULT_MEGATRON_DIR)
     parser.add_argument("--work-dir", type=str, default=DEFAULT_WORK_DIR)

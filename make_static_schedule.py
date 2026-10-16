@@ -10,7 +10,7 @@ include it in the *filename* for downstream plotting only.
 
 Usage:
     python make_static_schedule.py --tp 1 --pp 1 --dp 4 --iters 1500 \
-        --out-dir schedules/short
+        --out-dir runs/schedules
 """
 import argparse
 import json
@@ -25,8 +25,10 @@ def main():
     ap.add_argument("--dp", type=int, required=True,
                     help="for filename only — train_elastic infers DP from n_gpus")
     ap.add_argument("--iters", type=int, required=True)
-    ap.add_argument("--out-dir", default="schedules/short")
+    ap.add_argument("--out-dir", default="runs/schedules")
     args = ap.parse_args()
+    if min(args.tp, args.pp, args.dp, args.iters) <= 0:
+        ap.error("parallel degrees and iterations must be positive")
 
     schedule = [{
         "tp": args.tp,

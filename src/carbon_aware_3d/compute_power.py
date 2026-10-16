@@ -88,7 +88,7 @@ class PowerMonitor:
     def results(self):
         if not self._readings:
             return 0.0, []
-        powers = [r[1] for r in self._readings]
+        powers = [r[2] for r in self._readings]
         avg_power = sum(powers) / len(powers)
         return avg_power, self._readings
 
