@@ -62,6 +62,24 @@ uses `--include-rl --model PATH --algo ppo` (or `dqn`).
 
 ## GPU training and profiling
 
+Run a repository Python script in the NeMo 26.08 container:
+
+```bash
+bash scripts/run_container.sh scripts/smoke_train.py
+```
+
+The wrapper uses NVIDIA GPUs, mounts this repository at `/workspace/project`,
+and mounts `/vast/cs2731_2026f/wat29/Megatron-LM` over the container's
+`/opt/Megatron-Bridge/3rdparty/Megatron-LM`. The default image is
+`/vast/cs2731_2026f/wat29/containers/nemo_26.08.sif`.
+Override host paths with `CONTAINER_IMAGE` and `MEGATRON_FORK`.
+Relative script and override paths resolve from the repository root; additional
+arguments pass through unchanged, with the container working directory set to
+`/workspace/project`. From another directory, invoke the wrapper by its full
+path. It loads Apptainer if unavailable and returns the training exit code.
+It does not request a GPU allocation. Use it within an existing GPU Slurm job.
+
+
 Run only inside an appropriate GPU allocation. Inspect `--help` and use
 `--dry-run` where available before launching. The supplied launcher commands use mock data. Profiles and checkpoints must match
 the model, batch size, sequence length, hardware, and parallel layouts being tested.
