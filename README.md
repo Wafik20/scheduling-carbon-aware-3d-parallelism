@@ -126,6 +126,70 @@ provide the Slurm rank/node variables, `GPUS_PER_NODE`, `MASTER_ADDR`,
 rather than relying on the old cluster's interface settings. The wrapper uses
 mock training data; it is a profiling workload, not corpus pretraining.
 
+## GPU power time series
+
+Within an existing GPU Slurm allocation, wrap any training command:
+
+```bash
+bash scripts/run_with_power.sh \
+  bash scripts/run_container.sh scripts/smoke_train.py
+
+POWER_INTERVAL=1 POWER_OUTPUT_DIR="$PWD/power_logs" \
+  bash scripts/run_with_power.sh srun --overlap python train_custom.py --steps 100
+```
+
+Run the wrapper **once per allocation**, not once per training rank. The training
+command is responsible for launching its own distributed workers. Its arguments
+and working directory are unchanged. When training uses `srun`, use `--overlap`
+so its step can share resources with the monitoring step.
+
+Monitoring runs on the host, independently of NeMo and Megatron. Install the
+existing optional dependency with `.venv/bin/python -m pip install -e '.[power]'`.
+`POWER_PYTHON` selects the host Python executable; by default the wrapper uses
+this repository's `.venv/bin/python`, or `python3` if no repository venv exists.
+The repository, Python environment, and output directory must be accessible at
+the same paths on every allocated node. No GPU allocation is requested.
+
+The wrapper discovers allocation nodes and starts one overlapping Slurm sampler
+task per node. Training starts only after every sampler has flushed its first
+sample. `POWER_INTERVAL` defaults to **0.5 seconds**. `POWER_STARTUP_TIMEOUT`
+defaults to **60 seconds**, and `POWER_STOP_TIMEOUT` to **10 seconds** for graceful
+cleanup before termination. Normal completion, training failure, and catchable
+termination signals stop monitoring. Training exit codes are preserved.
+
+`POWER_OUTPUT_DIR` defaults to the repository's `power_logs/`. Each invocation
+gets a unique run directory under `job_<SLURM_JOB_ID>/`, so repeated runs do not
+overwrite each other. Each node writes its own `<hostname>.csv`.
+
+CSV rows contain UTC `timestamp`, monotonic `elapsed_s` (also retained as
+`wallclock_s`), `hostname`, `slurm_job_id`, `rank`, `slurm_node_id`, `config_tag`,
+`time_step`, `n_gpus`, `gpu_uuids`, `total_power_W`, and `GPU_0_W`, `GPU_1_W`, etc.
+The semicolon-separated UUID list maps in order to the GPU power columns.
+Failed readings are `nan`; the node total is also `nan` if any GPU reading is
+missing. Raw measurements are retained; no energy integration or carbon
+accounting is performed. A sampler failure during training prints a warning
+without replacing the training command's exit code.
+
+GPU selection uses node-local Slurm allocation IDs, not remapped CUDA ordinals.
+When job-level IDs are empty or absent (as on CRC), the wrapper falls back to
+`SLURM_STEP_GPUS` from its allocation-wide monitoring step. NVML enumeration
+index 0 may represent Slurm GPU 3: selection matches NVML's device minor number,
+not its enumeration index, and records its UUID. A matching visible-device count
+alone is not accepted as proof of ownership.
+Numeric Slurm IDs are assumed to match `/dev/nvidia*` minor numbers, as in the
+usual device-file GRES configuration; custom GRES numbering requires UUID IDs.
+Missing or ambiguous allocation metadata fails startup rather than sampling
+unallocated GPUs. MIG allocations are rejected because parent GPU power cannot
+be attributed safely to a MIG instance.
+
+The existing in-process `PowerMonitor` APIs and results tuple layouts remain
+available, as do legacy `rank<N>.csv` sidecar filenames without `--ready-dir`.
+Both monitors now share the NVML implementation, use allocation-aware selection,
+and write `nan` instead of zero on read failures. CSV columns have been extended.
+Legacy in-process monitors prefer step GPUs; this wrapper measures the whole
+job allocation. Do not enable both monitoring paths for the same training run
+unless duplicate sampling is intentional.
+
 ## Layout
 
 ```text
