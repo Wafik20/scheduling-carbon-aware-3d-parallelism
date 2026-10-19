@@ -123,8 +123,8 @@ def test_rank_layout_mismatch_rejected(artifacts, mutation):
 
 
 @pytest.mark.parametrize("world_size", [2, 4, 8])
-@pytest.mark.parametrize("socket_mode", [False, True])
-def test_batch_composes_existing_wrappers_and_propagates_failure(tmp_path, world_size, socket_mode):
+@pytest.mark.parametrize("socket_mode,memlock_mode,ib_mode", [(False, False, False), (True, False, False), (False, True, False), (False, False, True)])
+def test_batch_composes_existing_wrappers_and_propagates_failure(tmp_path, world_size, socket_mode, memlock_mode, ib_mode):
     import os
     import subprocess
     import sys
@@ -141,6 +141,7 @@ def test_batch_composes_existing_wrappers_and_propagates_failure(tmp_path, world
     env = dict(os.environ, SLURM_SUBMIT_DIR=str(tmp_path), SLURM_JOB_NODELIST='node[0-1]',
                SLURM_JOB_ID='123', SLURM_NTASKS=str(world_size), POWER_PYTHON=sys.executable,
                SMOKE_NCCL_SOCKET=str(int(socket_mode)), SMOKE_SOCKET_IFNAME='ib0',
+               SMOKE_UNLIMITED_MEMLOCK=str(int(memlock_mode)), SMOKE_NCCL_BUILTIN_IB=str(int(ib_mode)),
                SLURM_CPU_BIND='mask_cpu:0x1', SLURM_CPU_BIND_TYPE='mask_cpu',
                SLURM_CPU_BIND_LIST='0x1', SLURM_CPU_BIND_VERBOSE='verbose',
                PATH=str(bindir) + os.pathsep + os.environ['PATH'])
@@ -155,10 +156,21 @@ def test_batch_composes_existing_wrappers_and_propagates_failure(tmp_path, world
     assert args.count('--cpu-bind=none') == 1
     assert f'--gpus-per-node={world_size // 2}' in args
     assert args[args.index('--duration') + 1] == '90'
-    assert ('scripts/nccl_socket_smoke.py' if socket_mode else 'scripts/smoke_train_multinode.py') in args
+    assert ('scripts/nccl_builtin_ib_smoke.py' if ib_mode else 'scripts/memlock_smoke.py' if memlock_mode else 'scripts/nccl_socket_smoke.py' if socket_mode else 'scripts/smoke_train_multinode.py') in args
+    if memlock_mode or ib_mode:
+        task_script = args[args.index('-c') + 1]
+        assert 'ulimit -Sl unlimited ||' in task_script
+    else:
+        assert '-c' not in args
     if socket_mode:
         environment = dict(line.split('=', 1) for line in (tmp_path / 'env').read_text().split('\0')[:-1])
         for key, value in dict(NCCL_NET='Socket', NCCL_NET_PLUGIN='none', NCCL_IB_DISABLE='1',
                               NCCL_COLLNET_ENABLE='0', NCCL_DMABUF_ENABLE='0', NCCL_DEBUG='INFO',
                               NCCL_SOCKET_IFNAME='=ib0').items():
+            assert environment[key] == environment['APPTAINERENV_' + key] == value
+    if ib_mode:
+        environment = dict(line.split('=', 1) for line in (tmp_path / 'env').read_text().split('\0')[:-1])
+        assert environment['SMOKE_UNLIMITED_MEMLOCK'] == '1'
+        for key, value in dict(NCCL_NET='IB', NCCL_NET_PLUGIN='none', NCCL_IB_DISABLE='0',
+                              NCCL_IB_HCA='=mlx5_0:1').items():
             assert environment[key] == environment['APPTAINERENV_' + key] == value

@@ -48,6 +48,17 @@ echo "Smoke artifacts: $run"
 
 # The sampler step inherits all allocated GPUs/node. Only the training
 # step requests one GPU/task; Slurm remaps each task's CUDA device to index 0.
+if [[ ${SMOKE_NCCL_BUILTIN_IB:-0} == 1 ]]; then
+    if [[ ${SMOKE_NCCL_SOCKET:-0} == 1 ]]; then
+        echo "Built-in IB and Socket modes are mutually exclusive" >&2
+        exit 1
+    fi
+    export SMOKE_UNLIMITED_MEMLOCK=1
+fi
+if [[ ${SMOKE_UNLIMITED_MEMLOCK:-0} == 1 && ${SMOKE_NCCL_SOCKET:-0} == 1 ]]; then
+    echo "Memlock isolation test cannot be combined with Socket mode" >&2
+    exit 1
+fi
 training_script=scripts/smoke_train_multinode.py
 if [[ ${SMOKE_NCCL_SOCKET:-0} == 1 ]]; then
     # ib0 carried successful TCP bootstrap on both nodes in job 4449428.
@@ -61,11 +72,28 @@ if [[ ${SMOKE_NCCL_SOCKET:-0} == 1 ]]; then
     training_script=scripts/nccl_socket_smoke.py
 fi
 
+training_command=(bash "$repo/scripts/run_container.sh" "$training_script")
+if [[ ${SMOKE_UNLIMITED_MEMLOCK:-0} == 1 ]]; then
+    # Executed by srun on EVERY training task, not in the batch shell.
+    training_command=(bash -c 'ulimit -Sl unlimited || { echo "Cannot raise soft memlock on $(hostname)" >&2; exit 1; }; exec "$@"'
+        memlock-task bash "$repo/scripts/run_container.sh" scripts/memlock_smoke.py)
+fi
+
+if [[ ${SMOKE_NCCL_BUILTIN_IB:-0} == 1 ]]; then
+    export NCCL_NET=IB NCCL_NET_PLUGIN=none NCCL_IB_DISABLE=0 NCCL_IB_HCA="=mlx5_0:1"
+    export NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,NET NCCL_COLLNET_ENABLE=0
+    for name in NCCL_NET NCCL_NET_PLUGIN NCCL_IB_DISABLE NCCL_IB_HCA NCCL_DEBUG NCCL_DEBUG_SUBSYS NCCL_COLLNET_ENABLE; do
+        export "APPTAINERENV_${name}=${!name}"
+    done
+    # Preserve the task-level memlock setup; replace only the container entrypoint.
+    training_command[${#training_command[@]}-1]=scripts/nccl_builtin_ib_smoke.py
+fi
+
 bash scripts/run_with_power.sh \
     srun --overlap --exact --export=ALL --kill-on-bad-exit=1 --cpu-bind=none \
     --nodes="$node_count" --ntasks="$world_size" --ntasks-per-node="$gpus_per_node" --cpus-per-task="$cpus_per_task" \
     --gpus-per-node="$gpus_per_node" --gpus-per-task=1 --gpu-bind=single:1 \
-    bash "$repo/scripts/run_container.sh" "$training_script" \
+    "${training_command[@]}" \
     --duration "$duration" \
     --result-dir "/workspace/project/${run#"$repo/"}/ranks"
 

@@ -213,6 +213,49 @@ Legacy in-process monitors prefer step GPUs; this wrapper measures the whole
 job allocation. Do not enable both monitoring paths for the same training run
 unless duplicate sampling is intentional.
 
+### Opt-in built-in InfiniBand experiment
+
+```bash
+SMOKE_NCCL_BUILTIN_IB=1 SMOKE_NCCL_SOCKET=0 \
+  sbatch -M gpu scripts/slurm_multinode_power_smoke.sh
+```
+
+This automatically enables unlimited soft memlock in each training task and
+checks the inherited limits inside Apptainer. It selects `NCCL_NET=IB`,
+`NCCL_NET_PLUGIN=none`, `NCCL_IB_DISABLE=0`, and `NCCL_IB_HCA==mlx5_0:1`.
+The exact HCA/port must exist on both nodes. Settings are exported with matching
+`APPTAINERENV_*` variables and reapplied by the diagnostic Python entrypoint
+inside the container, before importing Torch/NCCL, so container defaults such
+as `NCCL_NET_PLUGIN=spcx` cannot replace them. CollNet is disabled for isolation;
+INFO INIT/NET logging is enabled. Other caller settings, including DMA-BUF,
+remain unchanged.
+
+Each rank logs its effective NCCL settings and writes NCCL output to
+`ranks/nccl-rank<N>.log` in the run artifact directory. After training, each
+rank requires `Using network IB` in its actual NCCL log and rejects a logged
+Spectrum-X/SPCX plugin load or use. Failure returns nonzero. The log check is
+performed during the real run; mocked tests do not demonstrate hardware success.
+Socket mode cannot be combined with this experiment. Default and Socket
+launches otherwise remain unchanged. No jobs are submitted by the scripts.
+
+### Opt-in unlimited memlock test (normal NCCL transport)
+
+```bash
+SMOKE_UNLIMITED_MEMLOCK=1 SMOKE_NCCL_SOCKET=0 \
+  sbatch -M gpu scripts/slurm_multinode_power_smoke.sh
+```
+
+Each Slurm training task runs `ulimit -Sl unlimited` before launching Apptainer.
+Failure stops the task immediately; Slurm's kill-on-bad-exit stops the step.
+Inside each container, the diagnostic entrypoint logs hostname, rank, and soft
+and hard locked-memory limits, verifies unlimited soft memlock, then runs the
+unchanged training script. The hard limit must already permit unlimited;
+this test does not raise the hard limit or change NCCL environment settings.
+Do not combine with Socket mode (the launcher rejects that combination).
+Leave `SMOKE_UNLIMITED_MEMLOCK` unset for the original behavior. Success means
+both ranks log unlimited limits and training completes past the first broadcast
+through the full smoke test. No hardware result is implied by mocked tests.
+
 ### Opt-in NCCL Socket diagnosis
 
 ```bash
