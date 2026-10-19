@@ -81,19 +81,33 @@ def main(argv):
         # A parent training step may expose only a subset of the job GPUs.
         # Let srun establish fresh node-local visibility for the full allocation.
         for key in list(env):
-            if key in {"LOCAL_RANK", "RANK", "CUDA_VISIBLE_DEVICES", "SLURM_STEP_GPUS", "SLURM_GPUS", "SLURM_GPUS_ON_NODE",
+            if key in {"LOCAL_RANK", "RANK", "CUDA_VISIBLE_DEVICES", "SLURM_JOB_GPUS", "SLURM_STEP_GPUS", "SLURM_GPUS", "SLURM_GPUS_ON_NODE",
                        "SLURM_GPUS_PER_NODE", "SLURM_GPUS_PER_TASK", "SLURM_GPUS_PER_SOCKET",
                        "SLURM_TRES_PER_TASK", "SLURM_TRES_PER_NODE", "SLURM_TRES_PER_SOCKET",
-                       "SLURM_CPUS_PER_GPU", "SLURM_MEM_PER_GPU", "SLURM_GPU_BIND",
+                       "SLURM_CPUS_PER_GPU", "SLURM_MEM_PER_GPU", "SLURM_GPU_BIND", "SLURM_TRES_BIND", "SLURM_TRES_PER_JOB",
                        "SLURM_NTASKS_PER_NODE", "SLURM_GRES", "SLURM_CPU_BIND", "SLURM_CPU_BIND_LIST",
                        "SLURM_CPU_BIND_TYPE", "SLURM_CPU_BIND_VERBOSE"} or key.startswith("SRUN_"):
                 env.pop(key)
+        # A uniform per-node request avoids Slurm choosing a smaller step GRES
+        # set when the monitoring step has fewer tasks/CPUs than training.
+        gpu_request = os.environ.get("POWER_GPUS_PER_NODE") or os.environ.get("SLURM_GPUS_PER_NODE")
+        gpu_options = []
+        sampler_options = []
+        if gpu_request:
+            # Preserve optional GRES type, e.g. a100:2.
+            parts = gpu_request.split(":")
+            if len(parts) > 2 or not parts[-1].isdigit() or int(parts[-1]) <= 0:
+                raise ValueError("POWER_GPUS_PER_NODE must be COUNT or TYPE:COUNT")
+            gpu_options = [f"--gpus-per-node={gpu_request}"]
+            sampler_options = ["--expected-gpus", parts[-1]]
+        else:
+            print("WARNING: no uniform GPU count specified; relying on Slurm step GRES inheritance", file=sys.stderr)
         count = str(len(nodes))
         command = ["srun", "--overlap", "--exact", "--export=ALL", "--kill-on-bad-exit=1", "--nodes", count, "--ntasks", count,
                    "--ntasks-per-node", "1", "--cpus-per-task", "1", "--cpu-bind=none", "--gpu-bind=none",
-                   sys.executable, str(repo / "compute_power_multinode.py"),
+                   *gpu_options, sys.executable, str(repo / "compute_power_multinode.py"),
                    "--log-dir", str(run), "--interval", str(interval),
-                   "--ready-dir", str(ready), "--stop-file", str(stop_file)]
+                   "--ready-dir", str(ready), "--stop-file", str(stop_file), *sampler_options]
         sampler = subprocess.Popen(command, env=env, start_new_session=True)
         deadline = time.monotonic() + startup_timeout
         while True:

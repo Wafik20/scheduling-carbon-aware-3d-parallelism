@@ -170,17 +170,40 @@ missing. Raw measurements are retained; no energy integration or carbon
 accounting is performed. A sampler failure during training prints a warning
 without replacing the training command's exit code.
 
-GPU selection uses node-local Slurm allocation IDs, not remapped CUDA ordinals.
-When job-level IDs are empty or absent (as on CRC), the wrapper falls back to
-`SLURM_STEP_GPUS` from its allocation-wide monitoring step. NVML enumeration
-index 0 may represent Slurm GPU 3: selection matches NVML's device minor number,
-not its enumeration index, and records its UUID. A matching visible-device count
-alone is not accepted as proof of ownership.
-Numeric Slurm IDs are assumed to match `/dev/nvidia*` minor numbers, as in the
-usual device-file GRES configuration; custom GRES numbering requires UUID IDs.
-Missing or ambiguous allocation metadata fails startup rather than sampling
-unallocated GPUs. MIG allocations are rejected because parent GPU power cannot
-be attributed safely to a MIG instance.
+GPU selection uses stable UUIDs, not numeric Slurm IDs or NVML minors.
+For numeric allocations, the sampler verifies `task/cgroup`,
+`ConstrainDevices=yes`, and membership in the current job's step cgroup on
+that node. The CUDA driver resolves the step's `CUDA_VISIBLE_DEVICES` to UUIDs;
+NVML opens those UUIDs. The UUID count must match node-local `SLURM_STEP_GPUS`
+(or `SLURM_JOB_GPUS` if step metadata is absent). Whole-job monitoring also
+rejects differing job/step counts when both are provided. NVML-visible devices
+are diagnostic inventory only, never proof of ownership. Missing guarantees,
+count mismatches, CUDA errors, and MIG devices fail closed.
+
+Each sampler logs its node, Slurm/CUDA variables, NVML indices/minors/UUIDs,
+and chosen UUIDs (or mapping failure). The host needs `libcuda.so.1` from the
+NVIDIA driver; no Torch dependency is added. The overlapping step gets fresh
+node-local GPU variables from Slurm, not the launch node's inherited IDs.
+This trusts the site's Slurm GRES device-file configuration and device-cgroup
+enforcement, as other Slurm GPU jobs do. The check runs on each compute node;
+it is not an independent audit of the kernel's cgroup-v2 BPF device policy.
+If the site cannot guarantee enforcement, do not use this mapping until an
+administrator verifies the GRES device assignments and effective device policy.
+
+Inside an **existing** GPU allocation, from the repository root, diagnose all
+nodes without training (does not request a new allocation):
+
+```bash
+env -u CUDA_VISIBLE_DEVICES -u SLURM_JOB_GPUS -u SLURM_STEP_GPUS \
+  srun --overlap --exact --export=ALL --kill-on-bad-exit=1 \
+  --nodes="$SLURM_JOB_NUM_NODES" --ntasks="$SLURM_JOB_NUM_NODES" \
+  --ntasks-per-node=1 --cpus-per-task=1 --gpus-per-node=1 --cpu-bind=none --gpu-bind=none \
+  "$PWD/.venv/bin/python" "$PWD/compute_power_multinode.py" --diagnose
+```
+
+Run from the batch/allocation shell, not a GPU-restricted training task. For the
+full two-node smoke test, submit manually with
+`sbatch -M gpu scripts/slurm_multinode_power_smoke.sh`.
 
 The existing in-process `PowerMonitor` APIs and results tuple layouts remain
 available, as do legacy `rank<N>.csv` sidecar filenames without `--ready-dir`.
@@ -189,6 +212,116 @@ and write `nan` instead of zero on read failures. CSV columns have been extended
 Legacy in-process monitors prefer step GPUs; this wrapper measures the whole
 job allocation. Do not enable both monitoring paths for the same training run
 unless duplicate sampling is intentional.
+
+### Opt-in NCCL Socket diagnosis
+
+```bash
+SMOKE_NCCL_SOCKET=1 sbatch -M gpu scripts/slurm_multinode_power_smoke.sh
+```
+
+This forces `NCCL_NET=Socket`, `NCCL_NET_PLUGIN=none`, `NCCL_IB_DISABLE=1`,
+`NCCL_COLLNET_ENABLE=0`, `NCCL_DMABUF_ENABLE=0`, and `NCCL_DEBUG=INFO`.
+The interface is exactly `ib0` (`NCCL_SOCKET_IFNAME==ib0`), used successfully
+for bootstrap on both nodes in job 4449428. This means TCP over IPoIB, not
+verbs/RDMA; it does not bypass the physical InfiniBand fabric. Override with
+`SMOKE_SOCKET_IFNAME=<common-interface>` only after verifying that interface
+and its cross-node IP reachability. Every rank checks the interface is up,
+non-loopback, and has an IPv4 address inside the container. These checks do
+not prove end-to-end connectivity on a future allocation.
+
+Slurm exports the settings with `--export=ALL`; matching `APPTAINERENV_*`
+variables override container defaults. The diagnostic entrypoint verifies
+settings before importing training, prints the effective `NCCL_*` environment,
+interface/address and locked-memory soft/hard limits (bytes, equivalent to
+`ulimit -l` information). It then runs the unchanged training workload.
+No transport settings are forced when `SMOKE_NCCL_SOCKET` is unset; caller
+settings remain intact. The previous unconditional DMA-BUF/debug exports
+are now diagnostic-only.
+
+Success requires `Using network Socket` on both nodes, successful broadcasts
+and training steps for 90 seconds, and `MULTINODE POWER SMOKE PASSED`. Initial
+communicator setup alone is not success. `Using network SPCX` or `NET/IB` data
+transport indicates the isolation was not effective.
+
+After a passing TCP run, test built-in IB separately with caller settings
+`NCCL_NET=IB NCCL_NET_PLUGIN=none NCCL_IB_DISABLE=0 NCCL_DEBUG=INFO`
+(without Socket mode; ensure no stale `APPTAINERENV_NCCL_*` overrides).
+Keep DMA-BUF disabled first. If built-in IB fails too, compare locked-memory
+limits, NVIDIA/OFED versions and peer-memory registration with CRC support.
+If built-in IB passes, re-enable the Spectrum-X plugin separately, then test
+DMA-BUF separately. Change one variable at a time. Retain per-node logs and
+the first registration error/errno. Do not treat disabling RDMA as a production
+performance fix or raise locked-memory limits without site guidance.
+
+### Two-node A100 power smoke test (manual submission)
+
+From the repository root, with the host power dependency installed and the
+container/fork paths available on both nodes:
+
+```bash
+sbatch -M gpu scripts/slurm_multinode_power_smoke.sh
+```
+
+This requests account `cs2731_2026f`, partition `a100_nvlink`, two nodes with
+one A100 GPU, 4 CPUs and 64 GB RAM **per node**, and a one-hour limit.
+It does not submit another allocation. The training step runs two Slurm ranks,
+one GPU per rank, using the existing container wrapper. Each task uses CUDA
+index 0 after Slurm GPU binding/remapping. Megatron uses DP=2, TP=1, PP=1,
+BF16 synthetic GPT training, gradient averaging, and AdamW updates. Rank zero
+coordinates stopping after every rank has trained for at least 90 seconds
+(excludes container/model startup). `SMOKE_DURATION` overrides this duration;
+use 60–120 seconds for this workload.
+
+Training does not require UUID properties from PyTorch. With one GPU bound per
+Slurm task it selects CUDA device 0, regardless of Slurm local rank. If the task
+sees the shared node GPU set, it selects `SLURM_LOCALID`. Completion records
+include local rank, CUDA device index, and visible-device count; only the NVML
+monitor tracks GPU UUIDs.
+
+The smoke launcher sets `POWER_GPUS_PER_NODE` to its expected GPU count (1 by
+default). The power wrapper requests `--gpus-per-node=1` explicitly on its
+one-task-per-node step, with `--overlap --exact --gpu-bind=none`. Each sampler
+must resolve one GPU before publishing readiness. The training step also
+requests one GPU per node and one GPU per task with `--gpu-bind=single:1`.
+These step requests cannot grant GPUs outside the parent Slurm allocation.
+For other uniform jobs set `POWER_GPUS_PER_NODE=COUNT` (or `TYPE:COUNT`);
+otherwise the wrapper uses `SLURM_GPUS_PER_NODE` when present. Without either,
+it warns and retains Slurm's default step inheritance; asymmetric allocations
+must not be forced into a uniform count.
+
+The existing power wrapper starts one sampler per node at 0.5-second intervals
+before training and cleans both up afterward. Training and monitoring steps
+use `--overlap`. The sampler has the full one-GPU allocation per node; only training
+tasks request one GPU each. Rendezvous uses the first allocated node and a
+job-derived port (override `MASTER_PORT` if needed). The repository and host
+Python environment must be shared across nodes; `POWER_PYTHON` overrides the
+default repository `.venv/bin/python`.
+
+Inspect `slurm-power-smoke-<jobid>.out` for the `Smoke artifacts:` path and
+`MULTINODE POWER SMOKE PASSED`. For example:
+
+```bash
+cat slurm-power-smoke-<jobid>.out
+find power_logs/multinode_<jobid>_* -name '*.csv'
+.venv/bin/python scripts/validate_multinode_power_smoke.py \
+  power_logs/multinode_<jobid>_<suffix> --duration 90
+```
+
+The artifact directory contains `ranks/rank0.json` through `rank1.json` and
+`job_<jobid>/run_<suffix>/<node>.csv` for each of the two nodes. The validator
+checks both completion records and their Slurm local-rank/CUDA mappings,
+one monitor UUID per node, positive finite per-GPU readings, correct single-GPU totals,
+and a time series spanning the training duration. Missing power readings fail
+this smoke test (the raw CSV still retains them). Training failures retain their
+exit code; successful training with invalid artifacts fails validation.
+No real multi-node run is implied by passing the mocked tests.
+
+The launcher derives node count from `SLURM_JOB_NODELIST`, world size from
+`SLURM_NTASKS`, and GPUs per node from tasks divided by nodes. It saves these
+expectations in `layout.json` for offline validation. Future layouts must keep
+one task per GPU and an equal task/GPU count on every node; update the Slurm
+resource requests together. TP=1, PP=1, and one CUDA-visible GPU per task remain
+intentional assumptions. CPU threads follow `SLURM_CPUS_PER_TASK` (default 4).
 
 ## Layout
 

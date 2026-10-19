@@ -91,7 +91,7 @@ sys.exit(7)
     assert 'CUDA_VISIBLE_DEVICES' not in launch['env']
     assert 'SLURM_STEP_GPUS' not in launch['env']
     assert 'SRUN_GPUS_PER_TASK' not in launch['env']
-    assert launch['env']['SLURM_JOB_GPUS'] == '0,1,2,3'
+    assert 'SLURM_JOB_GPUS' not in launch['env']
     assert (root / 'stopped').exists()
     assert len(list((root / 'logs' / 'job_123').glob('run_*'))) == 1
 
@@ -175,3 +175,16 @@ def test_interrupt_during_startup(mock_cluster):
         if process.poll() is None:
             process.kill()
             process.wait()
+
+
+@pytest.mark.parametrize("gpu_request", ["1", "2", "a100:2"])
+def test_explicit_per_node_gpu_gpu_request(mock_cluster, gpu_request):
+    root, env = mock_cluster
+    env['POWER_GPUS_PER_NODE'] = gpu_request
+    result = run(env, sys.executable, '-c', 'pass')
+    assert result.returncode == 0, result.stderr
+    args = json.loads((root / 'srun.json').read_text())['args']
+    assert f'--gpus-per-node={gpu_request}' in args
+    assert args[args.index('--expected-gpus') + 1] == gpu_request.split(':')[-1]
+    assert args[args.index('--ntasks-per-node') + 1] == '1'
+    assert '--gpu-bind=none' in args
