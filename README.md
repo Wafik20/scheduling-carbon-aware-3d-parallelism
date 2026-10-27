@@ -222,8 +222,11 @@ SMOKE_NCCL_BUILTIN_IB=1 SMOKE_NCCL_SOCKET=0 \
 
 This automatically enables unlimited soft memlock in each training task and
 checks the inherited limits inside Apptainer. It selects `NCCL_NET=IB`,
-`NCCL_NET_PLUGIN=none`, `NCCL_IB_DISABLE=0`, and `NCCL_IB_HCA==mlx5_0:1`.
-The exact HCA/port must exist on both nodes. Settings are exported with matching
+`NCCL_NET_PLUGIN=none`, and `NCCL_IB_DISABLE=0`. NCCL automatically discovers
+HCAs: inherited `NCCL_IB_HCA` and `APPTAINERENV_NCCL_IB_HCA` are cleared,
+and container-default HCA restrictions are removed before NCCL imports.
+To explicitly restrict adapters, set `SMOKE_NCCL_IB_HCA='=mlx5_3:1'` (or another
+NCCL HCA expression valid on both nodes). Only that opt-in override is applied. Settings are exported with matching
 `APPTAINERENV_*` variables and reapplied by the diagnostic Python entrypoint
 inside the container, before importing Torch/NCCL, so container defaults such
 as `NCCL_NET_PLUGIN=spcx` cannot replace them. CollNet is disabled for isolation;
@@ -232,7 +235,8 @@ remain unchanged.
 
 Each rank logs its effective NCCL settings and writes NCCL output to
 `ranks/nccl-rank<N>.log` in the run artifact directory. After training, each
-rank requires `Using network IB` in its actual NCCL log and rejects a logged
+rank requires `Using network IB` and a `NET/IB : Using [...]` adapter-selection
+line in its actual NCCL log, prints the selected adapters, and rejects a logged
 Spectrum-X/SPCX plugin load or use. Failure returns nonzero. The log check is
 performed during the real run; mocked tests do not demonstrate hardware success.
 Socket mode cannot be combined with this experiment. Default and Socket

@@ -142,6 +142,8 @@ def test_batch_composes_existing_wrappers_and_propagates_failure(tmp_path, world
                SLURM_JOB_ID='123', SLURM_NTASKS=str(world_size), POWER_PYTHON=sys.executable,
                SMOKE_NCCL_SOCKET=str(int(socket_mode)), SMOKE_SOCKET_IFNAME='ib0',
                SMOKE_UNLIMITED_MEMLOCK=str(int(memlock_mode)), SMOKE_NCCL_BUILTIN_IB=str(int(ib_mode)),
+               NCCL_IB_HCA='=stale:1', APPTAINERENV_NCCL_IB_HCA='=stale:1',
+               SMOKE_NCCL_IB_HCA='',
                SLURM_CPU_BIND='mask_cpu:0x1', SLURM_CPU_BIND_TYPE='mask_cpu',
                SLURM_CPU_BIND_LIST='0x1', SLURM_CPU_BIND_VERBOSE='verbose',
                PATH=str(bindir) + os.pathsep + os.environ['PATH'])
@@ -171,6 +173,13 @@ def test_batch_composes_existing_wrappers_and_propagates_failure(tmp_path, world
     if ib_mode:
         environment = dict(line.split('=', 1) for line in (tmp_path / 'env').read_text().split('\0')[:-1])
         assert environment['SMOKE_UNLIMITED_MEMLOCK'] == '1'
-        for key, value in dict(NCCL_NET='IB', NCCL_NET_PLUGIN='none', NCCL_IB_DISABLE='0',
-                              NCCL_IB_HCA='=mlx5_0:1').items():
+        assert 'NCCL_IB_HCA' not in environment
+        assert 'APPTAINERENV_NCCL_IB_HCA' not in environment
+        assert environment['APPTAINERENV_SMOKE_NCCL_IB_HCA'] == ''
+        entry = args.index('scripts/nccl_builtin_ib_smoke.py')
+        assert args[entry - 1].endswith('/scripts/run_container.sh')
+        assert args[entry + 1:entry + 4] == ['--duration', '90', '--result-dir']
+        assert args[entry + 4].endswith('/ranks')
+        assert entry + 5 == len(args)
+        for key, value in dict(NCCL_NET='IB', NCCL_NET_PLUGIN='none', NCCL_IB_DISABLE='0').items():
             assert environment[key] == environment['APPTAINERENV_' + key] == value

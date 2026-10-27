@@ -80,9 +80,12 @@ if [[ ${SMOKE_UNLIMITED_MEMLOCK:-0} == 1 ]]; then
 fi
 
 if [[ ${SMOKE_NCCL_BUILTIN_IB:-0} == 1 ]]; then
-    export NCCL_NET=IB NCCL_NET_PLUGIN=none NCCL_IB_DISABLE=0 NCCL_IB_HCA="=mlx5_0:1"
+    unset NCCL_IB_HCA APPTAINERENV_NCCL_IB_HCA
+    # Pass only this explicit opt-in override, not a stale container setting.
+    export APPTAINERENV_SMOKE_NCCL_IB_HCA="${SMOKE_NCCL_IB_HCA:-}"
+    export NCCL_NET=IB NCCL_NET_PLUGIN=none NCCL_IB_DISABLE=0
     export NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,NET NCCL_COLLNET_ENABLE=0
-    for name in NCCL_NET NCCL_NET_PLUGIN NCCL_IB_DISABLE NCCL_IB_HCA NCCL_DEBUG NCCL_DEBUG_SUBSYS NCCL_COLLNET_ENABLE; do
+    for name in NCCL_NET NCCL_NET_PLUGIN NCCL_IB_DISABLE NCCL_DEBUG NCCL_DEBUG_SUBSYS NCCL_COLLNET_ENABLE; do
         export "APPTAINERENV_${name}=${!name}"
     done
     # Preserve the task-level memlock setup; replace only the container entrypoint.
