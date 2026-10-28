@@ -1,0 +1,62 @@
+[
+  {
+    "rank": 0,
+    "local_rank": 0,
+    "hostname": "gpu-n28.crc.pitt.edu",
+    "gpu_uuid": "GPU-60be3b8f-6530-4302-318a-0a6af70eecdc",
+    "pci_bus_id": "00000000:07:00.0",
+    "environment": {
+      "SLURM_JOB_ID": "4579126",
+      "SLURM_STEP_ID": "1",
+      "CUDA_VISIBLE_DEVICES": "0",
+      "SLURM_STEP_GPUS": "0",
+      "SLURM_JOB_GPUS": "2,3",
+      "SLURM_GPUS_ON_NODE": "2"
+    }
+  },
+  {
+    "rank": 1,
+    "local_rank": 1,
+    "hostname": "gpu-n28.crc.pitt.edu",
+    "gpu_uuid": "GPU-6b80e9f8-8932-d970-fc4e-3671cddc0a2f",
+    "pci_bus_id": "00000000:0B:00.0",
+    "environment": {
+      "SLURM_JOB_ID": "4579126",
+      "SLURM_STEP_ID": "1",
+      "CUDA_VISIBLE_DEVICES": "1",
+      "SLURM_STEP_GPUS": "1",
+      "SLURM_JOB_GPUS": "2,3",
+      "SLURM_GPUS_ON_NODE": "2"
+    }
+  },
+  {
+    "rank": 2,
+    "local_rank": 0,
+    "hostname": "gpu-n30.crc.pitt.edu",
+    "gpu_uuid": "GPU-af3445b2-2f34-ce06-4092-546f9f0efe49",
+    "pci_bus_id": "00000000:48:00.0",
+    "environment": {
+      "SLURM_JOB_ID": "4579126",
+      "SLURM_STEP_ID": "1",
+      "CUDA_VISIBLE_DEVICES": "0",
+      "SLURM_STEP_GPUS": "0",
+      "SLURM_JOB_GPUS": "2,3",
+      "SLURM_GPUS_ON_NODE": "1"
+    }
+  },
+  {
+    "rank": 3,
+    "local_rank": 1,
+    "hostname": "gpu-n30.crc.pitt.edu",
+    "gpu_uuid": "GPU-af3445b2-2f34-ce06-4092-546f9f0efe49",
+    "pci_bus_id": "00000000:48:00.0",
+    "environment": {
+      "SLURM_JOB_ID": "4579126",
+      "SLURM_STEP_ID": "1",
+      "CUDA_VISIBLE_DEVICES": "0",
+      "SLURM_STEP_GPUS": "0",
+      "SLURM_JOB_GPUS": "2,3",
+      "SLURM_GPUS_ON_NODE": "1"
+    }
+  }
+]

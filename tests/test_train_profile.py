@@ -100,12 +100,20 @@ def test_slurm_configures_before_launch_and_verifies_only_success(tmp_path, monk
         "--slurm", "--in-container", "--num-gpus", "8"])
     monkeypatch.setattr(memlock_smoke, "check_memlock", lambda: events.append("memlock"))
     monkeypatch.setattr(ib, "configure", lambda log: events.append(("configure", log)))
+    from scripts import nccl_oob_preflight as oob
+    def network_preflight(work):
+        monkeypatch.setenv("NCCL_SOCKET_IFNAME", "=validated0")
+        monkeypatch.setenv("NCCL_SOCKET_FAMILY", "AF_INET")
+        events.append("oob")
+    monkeypatch.setattr(oob, "configure_profile_oob", network_preflight)
     monkeypatch.setattr(ib, "verify_log", lambda log: events.append(("verify", log)))
     def launch(command):
         assert command[0] == sys.executable
         assert "torchrun" not in command
         assert os.environ["RANK"] == "1"
         assert os.environ["WORLD_SIZE"] == "8"
+        assert os.environ["NCCL_SOCKET_IFNAME"] == "=validated0"
+        assert os.environ["NCCL_SOCKET_FAMILY"] == "AF_INET"
         events.append("launch")
         return status
     monkeypatch.setattr(train_profile.subprocess, "call", launch)
@@ -113,7 +121,7 @@ def test_slurm_configures_before_launch_and_verifies_only_success(tmp_path, monk
         train_profile.main()
     assert exc.value.code == status
     log = tmp_path / "work" / "nccl-rank1.log"
-    assert events == ["memlock", ("configure", log), "launch"] + (
+    assert events == ["memlock", ("configure", log), "oob", "launch"] + (
         [("verify", log)] if status == 0 else [])
 
 

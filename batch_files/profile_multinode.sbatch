@@ -14,8 +14,8 @@
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:?Submit from the scheduler repository root}"
 mapfile -t nodes < <(scontrol show hostnames "${SLURM_JOB_NODELIST:?}")
-if (( ${#nodes[@]} != 2 )) || [[ ${SLURM_NTASKS:?} != 4 && ${SLURM_NTASKS} != 8 ]]; then
-    echo "This profiler requires two nodes and four or eight tasks (one per GPU)" >&2
+if (( ${#nodes[@]} != 2 )) || [[ ${SLURM_NTASKS:?} != 2 && ${SLURM_NTASKS} != 4 && ${SLURM_NTASKS} != 8 ]]; then
+    echo "This profiler requires two nodes and two, four, or eight tasks (one per GPU)" >&2
     exit 1
 fi
 world_size=$SLURM_NTASKS
@@ -43,7 +43,7 @@ done
 # devices through the cgroup. Do not replace task binding with --gpu-bind=none.
 # Each rank raises memlock before Apptainer; --slurm also checks it inside.
 exec bash scripts/run_with_power.sh \
-    srun --overlap --exact --export=ALL --kill-on-bad-exit=1 --cpu-bind=none \
+    srun --overlap --exact --export=ALL --kill-on-bad-exit=1 --cpu-bind=none --distribution=block \
     --nodes=2 --ntasks="$world_size" --ntasks-per-node="$gpus_per_node" --cpus-per-task="${SLURM_CPUS_PER_TASK:-4}" \
     --gpus-per-node="$gpus_per_node" --gpus-per-task=1 --gpu-bind=single:1 --gres-flags=allow-task-sharing \
     bash -c 'ulimit -Sl unlimited || { echo "Cannot raise soft memlock on $(hostname)" >&2; exit 1; }; exec "$@"' \

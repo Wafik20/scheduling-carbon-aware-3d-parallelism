@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -19,6 +20,22 @@ def test_duplicate_gpu():
     records[3]["gpu_uuid"] = records[1]["gpu_uuid"]
     with pytest.raises(ValueError, match=r"duplicate GPU assignments on node1.*1, 3"):
         pre.validate_mappings(records, 4, 2, 2)
+
+
+@pytest.mark.parametrize("job, duplicate_ranks", [("4578577", None), ("4579126", [2, 3])])
+def test_recorded_multinode_allocations(job, duplicate_ranks):
+    # Reduced copies of saved pre-NCCL rank records; no live Slurm dependency.
+    path = Path(__file__).parent / "fixtures" / "gpu_preflight" / f"{job}.json"
+    records = json.loads(path.read_text())
+    if duplicate_ranks is None:
+        pre.validate_mappings(records, 4, 2, 2)
+    else:
+        first, second = (records[r] for r in duplicate_ranks)
+        assert first["gpu_uuid"] == second["gpu_uuid"]
+        assert first["pci_bus_id"] == second["pci_bus_id"]
+        assert first["environment"]["SLURM_GPUS_ON_NODE"] == "1"
+        with pytest.raises(ValueError, match=r"duplicate GPU assignments on gpu-n30.*2, 3"):
+            pre.validate_mappings(records, 4, 2, 2)
 
 
 def test_missing_rank_and_node_count():

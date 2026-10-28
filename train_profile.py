@@ -300,6 +300,8 @@ def main():
         nccl_log = Path(args.work_dir).resolve() / f"nccl-rank{rank}.log"
         nccl_log.unlink(missing_ok=True)
         configure(nccl_log)
+        from scripts.nccl_oob_preflight import configure_profile_oob
+        configure_profile_oob(args.work_dir)
     rc = subprocess.call(full_cmd)
     if args.slurm and rc == 0:
         verify_log(nccl_log)

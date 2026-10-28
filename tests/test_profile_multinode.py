@@ -12,12 +12,12 @@ BATCH = ROOT / "batch_files/profile_multinode.sbatch"
 
 
 @pytest.mark.parametrize("hca", ["", "mlx5_0"])
-@pytest.mark.parametrize("world_size", [4, 8])
+@pytest.mark.parametrize("world_size", [2, 4, 8])
 def test_batch_composes_per_gpu_ib_profile(tmp_path, hca, world_size):
     batch_dir = tmp_path / "batch_files"
     batch_dir.mkdir()
     (batch_dir / BATCH.name).write_text(BATCH.read_text())
-    batch = ROOT / "batch_files/profile_multinode_4gpu.sbatch" if world_size == 4 else BATCH
+    batch = ROOT / f"batch_files/profile_multinode_{world_size}gpu.sbatch" if world_size in (2, 4) else BATCH
     gpus_per_node = world_size // 2
     scripts = tmp_path / "scripts"
     scripts.mkdir()
@@ -46,6 +46,12 @@ def test_batch_composes_per_gpu_ib_profile(tmp_path, hca, world_size):
                    "--cpus-per-task=6", "--cpu-bind=none", "--overlap", "--exact"):
         assert option in args
     assert "--gpu-bind=none" not in args
+    assert "--distribution=block" in args
+    if world_size == 4:
+        # Slurm block distribution fills each node before assigning the next.
+        ranks_by_node = [list(range(start, start + gpus_per_node))
+                         for start in range(0, world_size, gpus_per_node)]
+        assert ranks_by_node == [[0, 1], [2, 3]]
     assert args[-7:] == ["train_profile.py", "--in-container", "--slurm",
                          "--num-gpus", str(world_size), "--work-dir", "runs/with spaces"]
     assert effective["MASTER_ADDR"] == "gpu-a"
@@ -65,6 +71,18 @@ def test_batch_composes_per_gpu_ib_profile(tmp_path, hca, world_size):
     assert effective["APPTAINERENV_SMOKE_NCCL_IB_HCA"] == hca
 
 
+def test_two_gpu_allocation_and_preflight():
+    from carbon_aware_3d.gpu_preflight import validate_mappings
+    wrapper = (ROOT / "batch_files/profile_multinode_2gpu.sbatch").read_text()
+    directives = dict(line.removeprefix("#SBATCH --").split("=", 1)
+                      for line in wrapper.splitlines() if line.startswith("#SBATCH --"))
+    assert {key: directives[key] for key in ("nodes", "ntasks", "ntasks-per-node", "gres")} == {
+        "nodes": "2", "ntasks": "2", "ntasks-per-node": "1", "gres": "gpu:1"}
+    records = [dict(rank=r, local_rank=0, hostname=f"node{r}", gpu_uuid=f"GPU-{r}")
+               for r in range(2)]
+    validate_mappings(records, world_size=2, nodes=2, per_node=1)
+
+
 @pytest.mark.parametrize("fails", [False, True])
 def test_memlock_precedes_container(tmp_path, fails):
     task = BATCH.read_text().split("bash -c '", 1)[1].split("'", 1)[0]
@@ -79,11 +97,11 @@ def test_memlock_precedes_container(tmp_path, fails):
     assert result.stdout == ("" if fails else "unlimited")
 
 
-@pytest.mark.parametrize("order", ["tp-dp-pp", "dp-tp-pp"])
-def test_four_gpu_menu(order):
+@pytest.mark.parametrize("world_size, order", [(2, "tp-dp-pp"), (4, "tp-dp-pp"), (4, "dp-tp-pp")])
+def test_profile_menu(world_size, order):
     from train_profile import read_profile_menu_preview
-    path = ROOT / f"configs/profile_menu_4gpu_{order}.json"
+    path = ROOT / f"configs/profile_menu_{world_size}gpu_{order}.json"
     cases = json.loads(path.read_text())["strategies"]
-    assert cases == [dict(tp=2, pp=1, dp=2, micro_batch_size=2, order=order)]
+    assert cases == [dict(tp=2, pp=1, dp=world_size // 2, micro_batch_size=2, order=order)]
     assert read_profile_menu_preview(path) == (2, 1, 2, [2])
-    assert 4 == cases[0]["tp"] * cases[0]["pp"] * cases[0]["dp"]
+    assert world_size == cases[0]["tp"] * cases[0]["pp"] * cases[0]["dp"]

@@ -18,6 +18,26 @@ A duplicate reports hostname, UUID, and offending global ranks. Rank collection
 errors are published as error records; a rank that never writes causes a bounded
 missing-rank timeout. No NCCL or other distributed process group is used.
 
+## Two-node, one-GPU-per-node TP/IB check
+
+From the repository root (command shown only; submit manually):
+
+```bash
+sbatch -M gpu -p a100_nvlink batch_files/profile_multinode_2gpu.sbatch \
+  --model gpt2 \
+  --profile-menu configs/profile_menu_2gpu_tp-dp-pp.json \
+  --work-dir runs/profile_2gpu_tp_ib \
+  --output runs/profile_2gpu_tp_ib/calibration.json
+```
+
+This uses TP=2, PP=1, DP=1, micro-batch size 2, and `tp-dp-pp`.
+Block placement puts global rank 0 on the first node and rank 1 on the second;
+TP group `[0, 1]` therefore crosses nodes. PP and DP groups are singletons.
+The shared launcher retains its GPU binding, IB settings, power sampler, and
+pre-NCCL UUID validation. The 4-GPU wrapper and 8-GPU default are unchanged.
+This configuration does not establish that the cluster's Slurm allocator or IB
+issues are fixed; a live run is still needed to verify communication.
+
 ## Artifacts after failure
 
 Under the profiling work directory:

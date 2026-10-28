@@ -111,3 +111,43 @@ eight distinct GPU UUIDs, and inspect TP/PP/DP memberships. Per-rank
 `nccl-rank*.log` files in the work directory are checked for built-in IB
 and absence of the external Spectrum-X plugin after a successful run.
 The existing single-node `profile.sbatch` / torchrun path is unchanged.
+
+## Validated TCP/OOB network before profiling
+
+The Slurm launcher reuses `scripts/nccl_oob_preflight.py` before spawning
+Megatron. It discovers each rank's local primary IPv4 interfaces, selects the
+one owning the node hostname address (or validates an exact override), and
+checks bidirectional TCP reachability. Only after success are
+`NCCL_SOCKET_IFNAME` (exact `=name`) and `NCCL_SOCKET_FAMILY=AF_INET` applied to
+the environment inherited by Megatron. No interface name or node IP is hardcoded.
+Job 4581054 demonstrated this on gpu-n37 (`eth5`, 10.201.2.216) and gpu-n52
+(`eth0`, 10.201.2.231): different names, reachable management addresses. Both
+probe ranks exited zero with IB verification; `host_staged` was false.
+
+With the existing two-node block distribution, matching local ranks are paired:
+2 GPUs: 0↔1; 4 GPUs: 0↔2, 1↔3; 8 GPUs: 0↔4, 1↔5, 2↔6, 3↔7.
+Every rank validates its own selection. This assumes the existing uniform
+per-node network namespace; it is not an all-to-all port/firewall test.
+Diagnostics live at
+`WORK_DIR/oob_preflight/JOB.STEP-PROFILE_MAPPING_RUN/rankN.oob*.json`.
+The launcher's existing invocation UUID prevents stale endpoint reuse.
+The existing 60-second preflight deadline is unchanged; failure prevents
+that rank from launching Megatron. Dry runs and single-node torchrun skip it.
+
+`NCCL_NET=IB`, GPU binding, UUID validation, power monitoring, parallel rank
+order, menus, and measurement behavior are unchanged. TCP/OOB interface
+selection does not replace the IB GPU-data transport.
+
+To rerun the 2-node × 1-GPU functionality check on the successful node pair,
+from the repository root (use fresh output/work paths for another rerun). The
+explicit `a100` partition matches job 4581054; batch defaults stay unchanged:
+
+```bash
+sbatch -M gpu -p a100 --nodelist=gpu-n37,gpu-n52 \
+  batch_files/profile_multinode_2gpu.sbatch \
+  --model gpt2 \
+  --profile-menu configs/profile_menu_2gpu_tp-dp-pp.json \
+  --warmup-min-seconds 2 --warmup-max-seconds 5 --measure-seconds 5 \
+  --output runs/profile_2gpu_oob_check/calibration.json \
+  --work-dir runs/profile_2gpu_oob_check
+```
