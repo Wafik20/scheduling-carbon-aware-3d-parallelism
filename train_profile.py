@@ -223,15 +223,21 @@ def main():
     ap.add_argument('--global-batch-size', type=int, default=16)
     ap.add_argument('--seq-length', type=int, default=None,
                     help='Override default seq_length for the model')
-    ap.add_argument('--megatron-dir', default=DEFAULT_MEGATRON_DIR,
+    ap.add_argument('--megatron-dir', default=None,
                     help='Megatron-LM path inside the container')
-    ap.add_argument('--container-image',
-                    default=DEFAULT_CONTAINER_IMAGE, required=not DEFAULT_CONTAINER_IMAGE)
+    ap.add_argument('--in-container', action='store_true',
+                    help='Run torchrun directly inside scripts/run_container.sh.')
+    ap.add_argument('--container-image', default=DEFAULT_CONTAINER_IMAGE)
     ap.add_argument('--container-bind', action='append', default=None)
     ap.add_argument('--work-dir', default=DEFAULT_WORK_DIR)
     ap.add_argument('--dry-run', action='store_true',
                     help='Print the Apptainer/torchrun command without running it.')
     args = ap.parse_args()
+    if args.megatron_dir is None:
+        args.megatron_dir = (
+            '/opt/Megatron-Bridge/3rdparty/Megatron-LM'
+            if args.in_container else DEFAULT_MEGATRON_DIR
+        )
 
     if args.output is None:
         args.output = os.path.join(
@@ -243,7 +249,9 @@ def main():
     # Validate inputs early
     if not os.path.isfile(args.profile_menu):
         sys.exit(f"[fatal] --profile-menu not found: {args.profile_menu}")
-    if not os.path.isfile(args.container_image):
+    if not args.in_container and (
+        not args.container_image or not os.path.isfile(args.container_image)
+    ):
         sys.exit(f"[fatal] --container-image not found: {args.container_image}")
     if args.warmup_min_seconds > args.warmup_max_seconds:
         sys.exit(f"[fatal] --warmup-min-seconds ({args.warmup_min_seconds}) "
@@ -282,7 +290,14 @@ def main():
         global_batch=args.global_batch_size,
         seq_length=seq_length,
     )
-    full_cmd = build_apptainer_prefix(args.container_image, binds) + inner
+    if args.in_container:
+        os.environ.setdefault('CUDA_DEVICE_MAX_CONNECTIONS', '1')
+        os.environ.setdefault('CUDA_HOME', '/usr/local/cuda')
+        os.environ.setdefault('PYTHONUNBUFFERED', '1')
+        os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', 'expandable_segments:True')
+        full_cmd = inner
+    else:
+        full_cmd = build_apptainer_prefix(args.container_image, binds) + inner
 
     print('=' * 70)
     print('  PROFILER LAUNCHER')

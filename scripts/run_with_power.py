@@ -84,6 +84,7 @@ def main(argv):
             if key in {"LOCAL_RANK", "RANK", "CUDA_VISIBLE_DEVICES", "SLURM_JOB_GPUS", "SLURM_STEP_GPUS", "SLURM_GPUS", "SLURM_GPUS_ON_NODE",
                        "SLURM_GPUS_PER_NODE", "SLURM_GPUS_PER_TASK", "SLURM_GPUS_PER_SOCKET",
                        "SLURM_TRES_PER_TASK", "SLURM_TRES_PER_NODE", "SLURM_TRES_PER_SOCKET",
+                       "SLURM_MEM_PER_CPU", "SLURM_MEM_PER_NODE",
                        "SLURM_CPUS_PER_GPU", "SLURM_MEM_PER_GPU", "SLURM_GPU_BIND", "SLURM_TRES_BIND", "SLURM_TRES_PER_JOB",
                        "SLURM_NTASKS_PER_NODE", "SLURM_GRES", "SLURM_CPU_BIND", "SLURM_CPU_BIND_LIST",
                        "SLURM_CPU_BIND_TYPE", "SLURM_CPU_BIND_VERBOSE"} or key.startswith("SRUN_"):
