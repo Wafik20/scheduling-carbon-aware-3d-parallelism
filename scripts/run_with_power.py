@@ -104,7 +104,10 @@ def main(argv):
         else:
             print("WARNING: no uniform GPU count specified; relying on Slurm step GRES inheritance", file=sys.stderr)
         count = str(len(nodes))
-        command = ["srun", "--overlap", "--exact", "--export=ALL", "--kill-on-bad-exit=1", "--nodes", count, "--ntasks", count,
+        # Start before training without --overlap: Slurm 25.05 can count the
+        # same GPU twice across its two GRES allocation passes for overlapping
+        # steps. Training uses --overlap to share this sampler's allocation.
+        command = ["srun", "--exact", "--export=ALL", "--kill-on-bad-exit=1", "--nodes", count, "--ntasks", count,
                    "--ntasks-per-node", "1", "--cpus-per-task", "1", "--cpu-bind=none", "--gpu-bind=none",
                    *gpu_options, sys.executable, str(repo / "compute_power_multinode.py"),
                    "--log-dir", str(run), "--interval", str(interval),

@@ -6,7 +6,10 @@ import runpy
 import socket
 import sys
 
-from memlock_smoke import check_memlock
+if __package__:
+    from .memlock_smoke import check_memlock
+else:
+    from memlock_smoke import check_memlock
 
 
 SETTINGS = dict(NCCL_NET="IB", NCCL_NET_PLUGIN="none", NCCL_IB_DISABLE="0",

@@ -229,6 +229,29 @@ def test_step_fallback_excludes_other_visible_nvml_gpus(fake_nvml, monkeypatch):
     assert power.allocated_handles(whole_job=True) == ([1], ["GPU-1"])
 
 
+@pytest.mark.parametrize("ids,uuids", [
+    ("1,2,3", ["GPU-0", "GPU-1", "GPU-2"]),
+    ("2,3,4,6", ["GPU-0", "GPU-1", "GPU-2", "GPU-3"]),
+])
+def test_four_gpu_node_readiness_uses_unique_cuda_devices(fake_nvml, monkeypatch, tmp_path, ids, uuids):
+    monkeypatch.setenv("SLURM_JOB_ID", "4573053")
+    monkeypatch.setenv("SLURM_STEP_GPUS", ids)
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", ",".join(str(i) for i in range(len(uuids))))
+    fake_nvml.cuda_uuids = uuids
+    monitor = PowerMonitor(log_file=tmp_path / "power.csv", ready_dir=tmp_path / "ready",
+                           hostname="node", whole_job=True, expected_gpus=4)
+    if len(uuids) == 3:
+        with pytest.raises(ValueError, match="expected 4 allocated GPUs, resolved 3"):
+            monitor.start()
+        assert not (tmp_path / "ready").exists()
+    else:
+        monitor.start()
+        monitor.stop()
+        assert (tmp_path / "ready" / "node").exists()
+        assert monitor.gpu_uuids == uuids
+    assert fake_nvml.closed == 1
+
+
 def test_missing_gpu_prevents_readiness(fake_nvml, monkeypatch, tmp_path):
     monkeypatch.setattr(power, "allocated_handles", lambda **kwargs: ([0], ["GPU-0"]))
     monitor = PowerMonitor(log_file=tmp_path / "power.csv", ready_dir=tmp_path / "ready",

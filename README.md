@@ -103,6 +103,10 @@ python train_profile.py --model gpt2 --num-gpus 4 \
 python train_online_elastic.py --help
 ```
 
+For multi-node placement, see [rank ordering](docs/profile_rank_order.md),
+[the successful 4-GPU reproduction](docs/profile_4gpu.md), and
+[pre-NCCL diagnostics](docs/gpu_preflight.md).
+
 Remove `--dry-run` only when ready to profile on GPUs. The example menu targets
 four GPUs. Pass the resulting calibration as `--scheduler-config` and an hourly
 trace as `--carbon-forecast` to `train_online_elastic.py`; also specify `--model`,
@@ -138,8 +142,9 @@ POWER_INTERVAL=1 POWER_OUTPUT_DIR="$PWD/power_logs" \
   bash scripts/run_with_power.sh srun --overlap python train_custom.py --steps 100
 ```
 
-Run the wrapper **once per allocation**, not once per training rank. The training
-command is responsible for launching its own distributed workers. Its arguments
+Run the wrapper **once per allocation**, from the batch/allocation shell before
+GPU-consuming steps, not inside a GPU-restricted training step or once per rank.
+The training command is responsible for launching its own distributed workers. Its arguments
 and working directory are unchanged. When training uses `srun`, use `--overlap`
 so its step can share resources with the monitoring step.
 
@@ -150,7 +155,7 @@ this repository's `.venv/bin/python`, or `python3` if no repository venv exists.
 The repository, Python environment, and output directory must be accessible at
 the same paths on every allocated node. No GPU allocation is requested.
 
-The wrapper discovers allocation nodes and starts one overlapping Slurm sampler
+The wrapper discovers allocation nodes and starts one Slurm sampler
 task per node. Training starts only after every sampler has flushed its first
 sample. `POWER_INTERVAL` defaults to **0.5 seconds**. `POWER_STARTUP_TIMEOUT`
 defaults to **60 seconds**, and `POWER_STOP_TIMEOUT` to **10 seconds** for graceful
@@ -182,7 +187,7 @@ count mismatches, CUDA errors, and MIG devices fail closed.
 
 Each sampler logs its node, Slurm/CUDA variables, NVML indices/minors/UUIDs,
 and chosen UUIDs (or mapping failure). The host needs `libcuda.so.1` from the
-NVIDIA driver; no Torch dependency is added. The overlapping step gets fresh
+NVIDIA driver; no Torch dependency is added. The sampler step gets fresh
 node-local GPU variables from Slurm, not the launch node's inherited IDs.
 This trusts the site's Slurm GRES device-file configuration and device-cgroup
 enforcement, as other Slurm GPU jobs do. The check runs on each compute node;
@@ -195,7 +200,7 @@ nodes without training (does not request a new allocation):
 
 ```bash
 env -u CUDA_VISIBLE_DEVICES -u SLURM_JOB_GPUS -u SLURM_STEP_GPUS \
-  srun --overlap --exact --export=ALL --kill-on-bad-exit=1 \
+  srun --exact --export=ALL --kill-on-bad-exit=1 \
   --nodes="$SLURM_JOB_NUM_NODES" --ntasks="$SLURM_JOB_NUM_NODES" \
   --ntasks-per-node=1 --cpus-per-task=1 --gpus-per-node=1 --cpu-bind=none --gpu-bind=none \
   "$PWD/.venv/bin/python" "$PWD/compute_power_multinode.py" --diagnose
@@ -327,7 +332,7 @@ monitor tracks GPU UUIDs.
 
 The smoke launcher sets `POWER_GPUS_PER_NODE` to its expected GPU count (1 by
 default). The power wrapper requests `--gpus-per-node=1` explicitly on its
-one-task-per-node step, with `--overlap --exact --gpu-bind=none`. Each sampler
+one-task-per-node step, with `--exact --gpu-bind=none` (no `--overlap`). Each sampler
 must resolve one GPU before publishing readiness. The training step also
 requests one GPU per node and one GPU per task with `--gpu-bind=single:1`.
 These step requests cannot grant GPUs outside the parent Slurm allocation.
@@ -337,9 +342,10 @@ it warns and retains Slurm's default step inheritance; asymmetric allocations
 must not be forced into a uniform count.
 
 The existing power wrapper starts one sampler per node at 0.5-second intervals
-before training and cleans both up afterward. Training and monitoring steps
-use `--overlap`. The sampler has the full one-GPU allocation per node; only training
-tasks request one GPU each. Rendezvous uses the first allocated node and a
+before training and cleans both up afterward. Only the training step uses
+`--overlap` to share the sampler resources. See
+[the GPU visibility investigation](docs/gpu_troubleshooting.md). The sampler
+has the full one-GPU allocation per node; only training tasks request one GPU each. Rendezvous uses the first allocated node and a
 job-derived port (override `MASTER_PORT` if needed). The repository and host
 Python environment must be shared across nodes; `POWER_PYTHON` overrides the
 default repository `.venv/bin/python`.

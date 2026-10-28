@@ -11,64 +11,15 @@ Mirrors train_online_elastic.py's apptainer + torchrun pattern; reuses
 its MODEL_CONFIGS dict, local 4-GPU L40S defaults, and
 build_apptainer_prefix helper.
 
-How it works (per case in the menu):
-
-1. RESHARD          destroy old parallel state, initialize new (TP, PP).
-                    MPU-only, ~50ms.
-
-2. BUILD            construct model + optimizer (loads checkpoint for
-                    non-first configs — this is the dominant cost of the
-                    BUILD step in production).
-
-3. VERIFY           sanity-check parallel shapes per rank.
-
-4. WARMUP iters     run train_step until step times stabilize (rolling
-                    window of last `--warmup-window` iters within
-                    `--warmup-tol` of their mean), bounded by
-                    `--warmup-min-seconds` and `--warmup-max-seconds`.
-                    Discard timings and power. GPU clocks/thermals
-                    reach equilibrium and the first train_step's CUDA
-                    kernel JIT / cuDNN autotune is absorbed. Without
-                    this, fast configs measure low because GPUs haven't
-                    ramped to steady state.
-
-4.5 WARMUP SAVE     (first config only) discard one save_checkpoint call
-                    so Megatron's dist-checkpoint subsystem, PyTorch's
-                    distributed I/O paths, CUDA pinned-memory buffers,
-                    and the filesystem inodes are all warm before the
-                    first MEASURED transition. Without this, the first
-                    real save is ~20s slower than subsequent ones —
-                    one-time setup costs (sharding plan construction,
-                    lazy imports, pinned-buffer allocation, fs metadata)
-                    that poison the average_reshard_wall_time_s metric.
-                    Must run AFTER warmup train_steps because Adam
-                    lazily allocates exp_avg/exp_avg_sq on the first
-                    optimizer.step(); saving before that fails with
-                    KeyError('exp_avg').
-
-5. MEASURE iters    run train_step for `--measure-seconds`, record step
-                    time and power. This is what lands in the
-                    calibration JSON.
-
-6. SAVE checkpoint  write model state to disk so the NEXT config can
-                    load it on its BUILD step (skipped after the last
-                    config). The wall time here is the dominant component
-                    of reshard_wall_time_s for the next transition.
-
-7. FREE memory      release model from GPU before next reshard.
-
-Steps 4.5 and 4 both exist for the same reason: discarding one-time
-setup costs (checkpoint subsystem init, GPU thermal ramp-up, kernel
-compile) so measurements reflect steady-state behavior. In production
-this is a non-issue — real training scripts checkpoint periodically for
-fault tolerance, so the dist-ckpt subsystem is already warm by the time
-the scheduler triggers its first switch. The profiler is the only place
-that needs to manually warm the subsystem.
+Measurement, checkpoint transitions, and wraparound are implemented by
+profile_strategies.py in the mounted Megatron fork. This file only builds and
+launches its command; see docs/profile_rank_order.md for placement experiments.
 """
 
 import argparse
 import json
 import os
+from pathlib import Path
 import subprocess
 import sys
 
@@ -189,6 +140,27 @@ def build_profile_cmd(cfg, profile_menu_path, output_path,
     return cmd
 
 
+def configure_slurm_ranks(environ, n_gpus):
+    """Use one Slurm task per GPU; LOCAL_RANK is a visible CUDA ordinal.
+
+    Preserve SLURM_LOCALID for topology records. A singleton task mask maps to
+    CUDA zero even when its token is a nonzero job-relative ID or a UUID.
+    """
+    rank = int(environ["SLURM_PROCID"])
+    local_rank = int(environ["SLURM_LOCALID"])
+    world_size = int(environ["SLURM_NTASKS"])
+    if world_size != n_gpus or not 0 <= rank < world_size or local_rank < 0:
+        raise ValueError("Slurm ranks must match --num-gpus (total world size)")
+    if not environ.get("MASTER_ADDR") or not environ.get("MASTER_PORT"):
+        raise ValueError("--slurm requires MASTER_ADDR and MASTER_PORT")
+    visible = [device.strip() for device in environ.get("CUDA_VISIBLE_DEVICES", "").split(",")
+               if device.strip()]
+    cuda_rank = 0 if len(visible) == 1 else local_rank
+    environ.update(RANK=str(rank), LOCAL_RANK=str(cuda_rank), WORLD_SIZE=str(world_size),
+                   PROFILE_SLURM_LAUNCH="1")
+    return rank
+
+
 # ── Main ─────────────────────────────────────────────────────
 
 def main():
@@ -227,12 +199,23 @@ def main():
                     help='Megatron-LM path inside the container')
     ap.add_argument('--in-container', action='store_true',
                     help='Run torchrun directly inside scripts/run_container.sh.')
+    ap.add_argument('--slurm', action='store_true',
+                    help='One Slurm task per GPU; requires --in-container. '
+                         '--num-gpus is the total world size.')
     ap.add_argument('--container-image', default=DEFAULT_CONTAINER_IMAGE)
     ap.add_argument('--container-bind', action='append', default=None)
     ap.add_argument('--work-dir', default=DEFAULT_WORK_DIR)
     ap.add_argument('--dry-run', action='store_true',
                     help='Print the Apptainer/torchrun command without running it.')
     args = ap.parse_args()
+    if args.slurm and not args.in_container:
+        ap.error("--slurm requires --in-container")
+    rank = None
+    if args.slurm:
+        try:
+            rank = configure_slurm_ranks(os.environ, args.num_gpus)
+        except (KeyError, ValueError) as exc:
+            ap.error(str(exc))
     if args.megatron_dir is None:
         args.megatron_dir = (
             '/opt/Megatron-Bridge/3rdparty/Megatron-LM'
@@ -262,7 +245,7 @@ def main():
 
     cfg = MODEL_CONFIGS[args.model]
     seq_length = args.seq_length or cfg["seq_length"]
-    first_tp, first_pp, first_mbs, menu_mbs_values = read_profile_menu_preview(
+    first_tp, first_pp, first_mbs, _ = read_profile_menu_preview(
         args.profile_menu
     )
     micro_batch_size = (
@@ -290,6 +273,8 @@ def main():
         global_batch=args.global_batch_size,
         seq_length=seq_length,
     )
+    if args.slurm:
+        inner = [sys.executable, *inner[2:]]
     if args.in_container:
         os.environ.setdefault('CUDA_DEVICE_MAX_CONNECTIONS', '1')
         os.environ.setdefault('CUDA_HOME', '/usr/local/cuda')
@@ -299,39 +284,25 @@ def main():
     else:
         full_cmd = build_apptainer_prefix(args.container_image, binds) + inner
 
-    print('=' * 70)
-    print('  PROFILER LAUNCHER')
-    print('=' * 70)
-    print(f"  Model:           {args.model}")
-    print(f"  GPUs:            {args.num_gpus}")
-    print(f"  Profile menu:    {args.profile_menu}")
-    print(f"  Initial TP/PP:   {first_tp}/{first_pp}")
-    print(f"  Initial MBS:     {first_mbs if first_mbs is not None else micro_batch_size}")
-    print(f"  Default MBS:     {micro_batch_size}")
-    if menu_mbs_values:
-        print(f"  Menu MBS values: {menu_mbs_values}")
-    else:
-        print("  Menu MBS values: old format; using Default MBS for every case")
-    print(f"  Global batch:    {args.global_batch_size}")
-    print(f"  Seq length:      {seq_length}")
-    print(f"  Container:       {args.container_image}")
-    print(f"  Megatron dir:    {args.megatron_dir}")
-    print(f"  Work dir:        {args.work_dir}")
-    print(f"  Warmup min/max:  {args.warmup_min_seconds}s / "
-          f"{args.warmup_max_seconds}s")
-    print(f"  Convergence:     window={args.warmup_window} iters, "
-          f"tol=±{args.warmup_tol*100:.1f}%")
-    print(f"  Measure secs:    {args.measure_seconds}")
-    print(f"  Output:          {args.output}")
-    print('=' * 70)
-    print('Full cmd:', ' '.join(full_cmd), flush=True)
-    print('=' * 70, flush=True)
+    if rank in (None, 0) or args.dry_run:
+        print(f"Profiling {args.model}: {args.num_gpus} GPUs, menu={args.profile_menu}, "
+              f"output={args.output}")
+        print('Full cmd:', ' '.join(full_cmd), flush=True)
 
     if args.dry_run:
         print("Dry run requested; not launching profiler.")
         return
 
+    if args.slurm:
+        from scripts.nccl_builtin_ib_smoke import configure, verify_log
+        from scripts.memlock_smoke import check_memlock
+        check_memlock()
+        nccl_log = Path(args.work_dir).resolve() / f"nccl-rank{rank}.log"
+        nccl_log.unlink(missing_ok=True)
+        configure(nccl_log)
     rc = subprocess.call(full_cmd)
+    if args.slurm and rc == 0:
+        verify_log(nccl_log)
     print(f"\nProfiler exited with rc={rc}")
     if rc == 0:
         print(f"Calibration written to: {args.output}")

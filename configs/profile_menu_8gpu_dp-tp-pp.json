@@ -1,0 +1,11 @@
+{
+  "strategies": [
+    {
+      "tp": 2,
+      "pp": 2,
+      "dp": 2,
+      "micro_batch_size": 2,
+      "order": "dp-tp-pp"
+    }
+  ]
+}

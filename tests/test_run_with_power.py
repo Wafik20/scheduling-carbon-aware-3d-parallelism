@@ -86,7 +86,8 @@ sys.exit(7)
     for flag in ['--nodes', '--ntasks']:
         assert args[args.index(flag) + 1] == str(len(nodes.split()))
     assert args[args.index('--ntasks-per-node') + 1] == '1'
-    assert '--overlap' in args and '--exact' in args and '--export=ALL' in args
+    assert '--overlap' not in args
+    assert '--exact' in args and '--export=ALL' in args
     assert not any('--exclusive' in arg or '--gres=none' in arg for arg in args)
     assert 'CUDA_VISIBLE_DEVICES' not in launch['env']
     assert 'SLURM_STEP_GPUS' not in launch['env']
@@ -177,13 +178,23 @@ def test_interrupt_during_startup(mock_cluster):
             process.wait()
 
 
-@pytest.mark.parametrize("gpu_request", ["1", "2", "a100:2"])
+@pytest.mark.parametrize("gpu_request", ["1", "2", "4", "a100:4"])
 def test_explicit_per_node_gpu_gpu_request(mock_cluster, gpu_request):
     root, env = mock_cluster
     env['POWER_GPUS_PER_NODE'] = gpu_request
-    result = run(env, sys.executable, '-c', 'pass')
+    inherited = dict(SLURM_GPUS_PER_TASK='1', SLURM_GPUS_PER_NODE='1',
+                     SLURM_TRES_PER_TASK='cpu:4,gres/gpu:1',
+                     SLURM_GPU_BIND='single:1', SLURM_TRES_BIND='gres/gpu:single:1',
+                     SRUN_OVERLAP='1')
+    env.update(inherited)
+    source = "import os; " + "; ".join(
+        f"assert os.environ[{key!r}] == {value!r}" for key, value in inherited.items())
+    result = run(env, sys.executable, '-c', source)
     assert result.returncode == 0, result.stderr
-    args = json.loads((root / 'srun.json').read_text())['args']
+    launch = json.loads((root / 'srun.json').read_text())
+    args = launch['args']
+    assert '--overlap' not in args
+    assert not (inherited.keys() & launch['env'].keys())
     assert f'--gpus-per-node={gpu_request}' in args
     assert args[args.index('--expected-gpus') + 1] == gpu_request.split(':')[-1]
     assert args[args.index('--ntasks-per-node') + 1] == '1'
