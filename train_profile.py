@@ -83,7 +83,7 @@ def build_profile_cmd(cfg, profile_menu_path, output_path,
                       warmup_window, warmup_tol,
                       measure_seconds,
                       micro_batch, global_batch, seq_length,
-                      extra_args=None):
+                      extra_args=None, profile_no_checkpoints=False):
     """Build torchrun + profile_strategies.py command. Mirrors
     build_online_elastic_cmd but swaps the inner script + arg set."""
     script = os.path.join(megatron_dir, "profile_strategies.py")
@@ -128,6 +128,9 @@ def build_profile_cmd(cfg, profile_menu_path, output_path,
         "--eval-iters",     "0",
         "--eval-interval",  "1000",
     ]
+
+    if profile_no_checkpoints:
+        cmd.append("--profile-no-checkpoints")
 
     if cfg["ffn_hidden_size"] is not None:
         cmd += ["--ffn-hidden-size", str(cfg["ffn_hidden_size"])]
@@ -205,6 +208,9 @@ def main():
     ap.add_argument('--container-image', default=DEFAULT_CONTAINER_IMAGE)
     ap.add_argument('--container-bind', action='append', default=None)
     ap.add_argument('--work-dir', default=DEFAULT_WORK_DIR)
+    ap.add_argument('--profile-no-checkpoints', action='store_true',
+                    help='Skip checkpoint saves for single-case placement profiling; '
+                         'not suitable for switch-cost calibration.')
     ap.add_argument('--dry-run', action='store_true',
                     help='Print the Apptainer/torchrun command without running it.')
     args = ap.parse_args()
@@ -272,6 +278,7 @@ def main():
         micro_batch=micro_batch_size,
         global_batch=args.global_batch_size,
         seq_length=seq_length,
+        profile_no_checkpoints=args.profile_no_checkpoints,
     )
     if args.slurm:
         inner = [sys.executable, *inner[2:]]

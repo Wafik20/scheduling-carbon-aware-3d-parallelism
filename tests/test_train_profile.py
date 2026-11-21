@@ -27,6 +27,14 @@ def test_container_mode_reuses_runner_mount_without_nested_apptainer(tmp_path):
     assert "--micro-batch-size 2" in command
 
 
+def test_checkpoint_free_mode_is_opt_in_and_forwarded(tmp_path):
+    default = run_launcher(tmp_path, "--in-container")
+    assert "--profile-no-checkpoints" not in default.stdout
+    enabled = run_launcher(tmp_path, "--in-container", "--profile-no-checkpoints")
+    assert enabled.returncode == 0, enabled.stderr
+    assert "--profile-no-checkpoints" in enabled.stdout.split("Full cmd:", 1)[1]
+
+
 def test_host_mode_still_requires_image_and_uses_apptainer(tmp_path):
     assert run_launcher(tmp_path).returncode != 0
     image = tmp_path / "test.sif"

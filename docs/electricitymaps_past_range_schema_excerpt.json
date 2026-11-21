@@ -1,0 +1,229 @@
+{
+  "source_url": "https://api.electricitymaps.com/v3/openapi.json",
+  "retrieved_utc": "2026-11-01",
+  "endpoint": {
+    "get": {
+      "operationId": "GetCarbonIntensityPastRange",
+      "tags": [
+        "carbon-intensity"
+      ],
+      "description": "Get the carbon intensity for a zone at a given datetime range",
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Start"
+        },
+        {
+          "$ref": "#/components/parameters/End"
+        },
+        {
+          "$ref": "#/components/parameters/TemporalGranularity"
+        },
+        {
+          "$ref": "#/components/parameters/Zone"
+        },
+        {
+          "$ref": "#/components/parameters/Lat"
+        },
+        {
+          "$ref": "#/components/parameters/Lon"
+        },
+        {
+          "$ref": "#/components/parameters/DisableCallerLookup"
+        },
+        {
+          "$ref": "#/components/parameters/DisableEstimations"
+        },
+        {
+          "$ref": "#/components/parameters/EmissionFactorType"
+        },
+        {
+          "$ref": "#/components/parameters/FlowTraced"
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Success",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "zone": {
+                    "type": "string"
+                  },
+                  "data": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/CarbonIntensity"
+                    }
+                  },
+                  "temporalGranularity": {
+                    "$ref": "#/components/schemas/TemporalGranularity",
+                    "examples": [
+                      "hourly"
+                    ]
+                  },
+                  "aggregationPeriod": {
+                    "$ref": "#/components/schemas/TemporalGranularity",
+                    "examples": [
+                      "hourly"
+                    ]
+                  }
+                },
+                "required": [
+                  "data",
+                  "temporalGranularity",
+                  "zone"
+                ]
+              }
+            }
+          }
+        },
+        "400": {
+          "description": "Error in input data - see actual response for details",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No recent data available for this zone",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoDataError"
+              }
+            }
+          }
+        }
+      },
+      "summary": "Past range"
+    }
+  },
+  "parameters": {
+    "Start": {
+      "name": "start",
+      "in": "query",
+      "required": true,
+      "description": "The start datetime to get the data for.",
+      "schema": {
+        "type": "string",
+        "format": "date-time",
+        "examples": [
+          "2024-05-19T03:00:00Z"
+        ]
+      }
+    },
+    "End": {
+      "name": "end",
+      "in": "query",
+      "required": true,
+      "description": "The end datetime to get the data for.",
+      "schema": {
+        "type": "string",
+        "format": "date-time",
+        "examples": [
+          "2024-05-19T08:00:00Z"
+        ]
+      }
+    },
+    "TemporalGranularity": {
+      "name": "temporalGranularity",
+      "in": "query",
+      "required": false,
+      "description": "The temporal granularity of the data to get.",
+      "schema": {
+        "$ref": "#/components/schemas/TemporalGranularity",
+        "default": "hourly",
+        "examples": [
+          "hourly"
+        ]
+      }
+    },
+    "Zone": {
+      "name": "zone",
+      "in": "query",
+      "required": false,
+      "description": "An Electricity Maps zone key.",
+      "schema": {
+        "type": "string",
+        "examples": [
+          "DK-DK2"
+        ]
+      }
+    },
+    "Lat": {
+      "name": "lat",
+      "in": "query",
+      "required": false,
+      "description": "Latitude of the location to get the data for.",
+      "schema": {
+        "type": "number",
+        "examples": [
+          41.877
+        ]
+      }
+    },
+    "Lon": {
+      "name": "lon",
+      "in": "query",
+      "required": false,
+      "description": "Longitude of the location to get the data for.",
+      "schema": {
+        "type": "number",
+        "examples": [
+          -88.0703
+        ]
+      }
+    },
+    "DisableCallerLookup": {
+      "name": "disableCallerLookup",
+      "in": "query",
+      "required": false,
+      "description": "If true, the fallback IP-based zone lookup will not be performed.",
+      "schema": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "DisableEstimations": {
+      "name": "disableEstimations",
+      "in": "query",
+      "required": false,
+      "description": "If true, the response will exclude estimated data points",
+      "schema": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "EmissionFactorType": {
+      "name": "emissionFactorType",
+      "in": "query",
+      "required": false,
+      "description": "The type of emission factor to use.",
+      "schema": {
+        "$ref": "#/components/schemas/EmissionFactorType",
+        "default": "lifecycle",
+        "examples": [
+          "lifecycle"
+        ]
+      }
+    },
+    "FlowTraced": {
+      "name": "flowTraced",
+      "in": "query",
+      "required": false,
+      "description": "If true, the response returns flow-traced (consumption-based) values.",
+      "schema": {
+        "type": "boolean",
+        "default": true,
+        "examples": [
+          true
+        ]
+      }
+    }
+  }
+}
