@@ -48,6 +48,11 @@ plots go under `--out`. Compare deadline-feasible completed jobs against the
 same episode's best feasible static layout; incomplete jobs are not savings.
 Use `--help` for token budgets, deadlines, switching costs, and oracle resolution.
 
+For all nine measured eight-GPU model menus, see
+[the measured-model CPU runner](docs/measured_model_evaluation.md). It retains
+placement and microbatch variants and compares a fixed-start configuration
+oracle against every feasible fixed tuple.
+
 Optional policy training:
 
 ```bash

@@ -195,6 +195,8 @@ def strategy_label(strategy: dict) -> str:
         parts.append(f"dp={int(strategy['dp'])}")
     if 'micro_batch_size' in strategy:
         parts.append(f"mbs={int(strategy['micro_batch_size'])}")
+    if 'placement_id' in strategy:
+        parts.append(f"placement_id={strategy['placement_id']}")
     return "(" + ",".join(parts) + ")"
 
 
